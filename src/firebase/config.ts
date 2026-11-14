@@ -53,7 +53,7 @@ export async function uploadImageToStorage(
   }
 
   // Attempt Firebase Storage upload when authenticated and online
-  if (typeof window !== 'undefined' && auth.currentUser && navigator.onLine !== false) {
+  if (typeof window !== 'undefined' && auth?.currentUser && storage && navigator.onLine !== false) {
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const storageRef = ref(storage, `${folder}/${Date.now()}-${safeName}`);

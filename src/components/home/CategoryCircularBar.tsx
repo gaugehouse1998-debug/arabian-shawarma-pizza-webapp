@@ -1,6 +1,6 @@
 import React from 'react';
 import { Category } from '../../types';
-import { resolveAssetUrl, DEFAULT_BURGER_IMAGE } from '../../utils/assetUrl';
+import { resolveAssetUrl, DEFAULT_BURGER_IMAGE, handleImageFallback } from '../../utils/assetUrl';
 
 interface CategoryCircularBarProps {
   categories: Category[];
@@ -72,6 +72,7 @@ export const CategoryCircularBar: React.FC<CategoryCircularBarProps> = ({
                     <img
                       src={resolveAssetUrl(cat.image, DEFAULT_BURGER_IMAGE)}
                       alt={cat.name}
+                      onError={(e) => handleImageFallback(e, DEFAULT_BURGER_IMAGE)}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   </div>

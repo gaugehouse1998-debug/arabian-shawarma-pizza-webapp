@@ -5,7 +5,7 @@ import { storageService } from '../../services/storageService';
 import { useCart } from '../../context/CartContext';
 import { CategoryCircularBar } from './CategoryCircularBar';
 import { ProductDetailModal } from '../menu/ProductDetailModal';
-import { resolveAssetUrl } from '../../utils/assetUrl';
+import { resolveAssetUrl, handleImageFallback } from '../../utils/assetUrl';
 
 interface FoodDiscoverySectionProps {
   onExploreAllDeals: () => void;
@@ -111,6 +111,7 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                     <img
                       src={resolveAssetUrl(product.image)}
                       alt={product.name}
+                      onError={(e) => handleImageFallback(e)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />
@@ -201,7 +202,12 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                       )}
                     </div>
                     <div className="aspect-16/9 rounded-xl overflow-hidden bg-neutral-950">
-                      <img src={resolveAssetUrl(deal.image)} alt={deal.title} className="w-full h-full object-cover" />
+                      <img
+                        src={resolveAssetUrl(deal.image)}
+                        alt={deal.title}
+                        onError={(e) => handleImageFallback(e)}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <h3 className="font-bold text-white text-sm font-display leading-tight">{deal.title}</h3>
                     <ul className="text-xs text-neutral-400 space-y-0.5">
@@ -294,6 +300,7 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                     <img
                       src={resolveAssetUrl(product.image)}
                       alt={product.name}
+                      onError={(e) => handleImageFallback(e)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />

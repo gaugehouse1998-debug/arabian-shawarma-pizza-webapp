@@ -3,7 +3,7 @@ import { Search, Flame, Sparkles, Filter, Plus, ChevronRight, Layers } from 'luc
 import { Product, Category } from '../../types';
 import { storageService } from '../../services/storageService';
 import { ProductDetailModal } from './ProductDetailModal';
-import { resolveAssetUrl } from '../../utils/assetUrl';
+import { resolveAssetUrl, handleImageFallback } from '../../utils/assetUrl';
 
 interface MenuSectionProps {
   initialCategory?: string;
@@ -181,6 +181,7 @@ export const MenuSection: React.FC<MenuSectionProps> = ({ initialCategory = 'All
                       src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       referrerPolicy="no-referrer"
+                      onError={(e) => handleImageFallback(e)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />

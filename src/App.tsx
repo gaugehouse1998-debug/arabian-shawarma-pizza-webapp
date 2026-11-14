@@ -24,9 +24,11 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DeliveryAreaModal } from './components/delivery/DeliveryAreaModal';
 import { ReviewPromptModal } from './components/reviews/ReviewPromptModal';
 import { storageService } from './services/storageService';
+import { subscribeFirebaseStatus, FirebaseStatusInfo } from './services/firebase';
 import { Order } from './types';
 import { CartProvider, useCart } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { WifiOff, X as CloseIcon } from 'lucide-react';
 
 const REVIEW_PROMPT_STATE_KEY = 'asp_review_prompt_state_v1';
 
@@ -112,6 +114,12 @@ function AppContent() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string>('');
   const [pendingReviewOrder, setPendingReviewOrder] = useState<Order | null>(null);
+  const [firebaseStatus, setFirebaseStatus] = useState<FirebaseStatusInfo>({ state: 'connecting' });
+  const [firebaseBannerDismissed, setFirebaseBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    return subscribeFirebaseStatus(setFirebaseStatus);
+  }, []);
 
   const activeTab = resolveActiveTabFromPath(location.pathname);
   const adminSection = resolveAdminSectionFromPath(location.pathname);
@@ -238,6 +246,32 @@ function AppContent() {
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between selection:bg-amber-500 selection:text-neutral-950">
       {/* Navigation */}
       <Navbar activeTab={activeTab} setActiveTab={handleSetActiveTab} />
+
+      {/* Subtle Non-Blocking Backend Connectivity Warning (Only shown if offline or backend error) */}
+      {(firebaseStatus.state === 'offline' || firebaseStatus.state === 'error') &&
+        !firebaseBannerDismissed && (
+          <div
+            role="status"
+            className="bg-amber-500/10 border-b border-amber-500/30 text-amber-200 px-4 py-2 text-xs"
+          >
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">
+                  Live cloud sync is temporarily unavailable — browsing cached menu &amp; local data. For instant orders call +92 322-2222461.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFirebaseBannerDismissed(true)}
+                aria-label="Dismiss connectivity notice"
+                className="p-1 rounded-lg hover:bg-amber-500/20 text-amber-300 shrink-0 cursor-pointer"
+              >
+                <CloseIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
       {/* Main Pages */}
       <main className="flex-1">

@@ -3,7 +3,7 @@ import { Tag, Plus, Check, Search } from 'lucide-react';
 import { Deal } from '../../types';
 import { storageService } from '../../services/storageService';
 import { useCart } from '../../context/CartContext';
-import { resolveAssetUrl } from '../../utils/assetUrl';
+import { resolveAssetUrl, handleImageFallback } from '../../utils/assetUrl';
 
 interface DealsSectionProps {
   onBackToMenu?: () => void;
@@ -150,6 +150,7 @@ export const DealsSection: React.FC<DealsSectionProps> = () => {
                       <img
                         src={resolveAssetUrl(deal.image)}
                         alt={`${deal.dealNumber} - ${deal.title}`}
+                        onError={(e) => handleImageFallback(e)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />

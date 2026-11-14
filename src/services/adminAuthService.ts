@@ -32,6 +32,9 @@ export interface AdminSecurityState {
 
 // Compute SHA-256 hash using native Web Crypto API
 async function sha256(text: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Secure context (HTTPS or localhost) is required for admin authentication.');
+  }
   const encoder = new TextEncoder();
   const data = encoder.encode(text + HASH_SALT);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -93,7 +96,16 @@ export const adminAuthService = {
     try {
       const stored = safeGetItem(ADMIN_STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored) as unknown;
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          !Array.isArray(parsed) &&
+          typeof (parsed as AdminSecurityState).passwordHash === 'string' &&
+          (parsed as AdminSecurityState).adminId === ADMIN_IDENTIFIER
+        ) {
+          return parsed as AdminSecurityState;
+        }
       }
     } catch {
       // Fallback

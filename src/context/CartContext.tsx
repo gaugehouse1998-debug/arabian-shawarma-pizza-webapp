@@ -69,8 +69,19 @@ function loadStoredLocation(): VerifiedLocationState | null {
   try {
     if (typeof window === 'undefined') return null;
     const raw = localStorage.getItem(CONFIRMED_LOCATION_KEY);
-    return raw ? (JSON.parse(raw) as VerifiedLocationState) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      localStorage.removeItem(CONFIRMED_LOCATION_KEY);
+      return null;
+    }
+    return parsed as VerifiedLocationState;
   } catch {
+    try {
+      localStorage.removeItem(CONFIRMED_LOCATION_KEY);
+    } catch {
+      // Ignore cleanup errors
+    }
     return null;
   }
 }
@@ -79,8 +90,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const stored = localStorage.getItem('asp_cart_items');
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+      const parsed = JSON.parse(stored) as unknown;
+      if (!Array.isArray(parsed)) {
+        localStorage.removeItem('asp_cart_items');
+        return [];
+      }
+      return parsed.filter(
+        (item): item is CartItem =>
+          Boolean(item) &&
+          typeof item === 'object' &&
+          typeof (item as CartItem).id === 'string' &&
+          typeof (item as CartItem).name === 'string' &&
+          Number.isFinite(Number((item as CartItem).price)) &&
+          Number.isFinite(Number((item as CartItem).quantity))
+      );
     } catch {
+      try {
+        localStorage.removeItem('asp_cart_items');
+      } catch {
+        // Ignore cleanup errors
+      }
       return [];
     }
   });

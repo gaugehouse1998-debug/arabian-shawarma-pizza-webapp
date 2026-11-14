@@ -117,26 +117,57 @@ try {
 function notifyDataChange(entity: string) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('asp_data_updated', { detail: { entity } }));
-    broadcastChannel?.postMessage({ type: 'DATA_UPDATED', entity });
+    try {
+      broadcastChannel?.postMessage({ type: 'DATA_UPDATED', entity });
+    } catch {
+      // Ignore BroadcastChannel closed/restricted context errors
+    }
   }
 }
 
 // In-memory cache fallback for SSR and test execution
 const inMemoryCache: Record<string, string> = {};
 
-// Helper to get with fallback
+function matchesExpectedShape<T>(parsed: unknown, defaultValue: T): parsed is T {
+  if (parsed === null || parsed === undefined) return false;
+  if (Array.isArray(defaultValue)) {
+    return Array.isArray(parsed);
+  }
+  if (typeof defaultValue === 'object' && defaultValue !== null) {
+    return typeof parsed === 'object' && !Array.isArray(parsed);
+  }
+  return typeof parsed === typeof defaultValue;
+}
+
+// Helper to get with shape-safe fallback
 function getStored<T>(key: string, defaultValue: T): T {
   try {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
+      if (item) {
+        const parsed = JSON.parse(item) as unknown;
+        if (matchesExpectedShape(parsed, defaultValue)) {
+          return parsed;
+        }
+        console.warn(`Corrupted shape for ${key}, resetting to default.`);
+        localStorage.removeItem(key);
+      }
+      return defaultValue;
     }
   } catch (e) {
     console.error(`Error loading key ${key}:`, e);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore cleanup errors
+    }
   }
   if (inMemoryCache[key]) {
     try {
-      return JSON.parse(inMemoryCache[key]);
+      const parsed = JSON.parse(inMemoryCache[key]) as unknown;
+      if (matchesExpectedShape(parsed, defaultValue)) {
+        return parsed;
+      }
     } catch {
       return defaultValue;
     }

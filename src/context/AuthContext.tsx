@@ -41,8 +41,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const stored = localStorage.getItem('asp_user_session');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as unknown;
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        Array.isArray(parsed) ||
+        typeof (parsed as UserSession).id !== 'string' ||
+        typeof (parsed as UserSession).name !== 'string' ||
+        (parsed as UserSession).role !== 'customer'
+      ) {
+        localStorage.removeItem('asp_user_session');
+        return null;
+      }
+      return parsed as UserSession;
     } catch {
+      try {
+        localStorage.removeItem('asp_user_session');
+      } catch {
+        // Ignore cleanup errors
+      }
       return null;
     }
   });
@@ -53,12 +71,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'customer') {
-        localStorage.setItem('asp_user_session', JSON.stringify(currentUser));
+    try {
+      if (currentUser) {
+        if (currentUser.role === 'customer') {
+          localStorage.setItem('asp_user_session', JSON.stringify(currentUser));
+        }
+      } else {
+        localStorage.removeItem('asp_user_session');
       }
-    } else {
-      localStorage.removeItem('asp_user_session');
+    } catch {
+      // Ignore storage quota / privacy mode errors
     }
   }, [currentUser]);
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, Check, Sparkles, Flame, Info } from 'lucide-react';
 import { Product, ProductSize, ProductAddon } from '../../types';
 import { useCart } from '../../context/CartContext';
-import { resolveAssetUrl } from '../../utils/assetUrl';
+import { resolveAssetUrl, handleImageFallback } from '../../utils/assetUrl';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -71,6 +71,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
           <img
             src={resolveAssetUrl(product.image)}
             alt={product.name}
+            onError={(e) => handleImageFallback(e)}
             className="w-full h-full object-cover opacity-85"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-neutral-900/40 to-transparent" />

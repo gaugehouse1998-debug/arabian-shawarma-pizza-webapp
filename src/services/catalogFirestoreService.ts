@@ -108,7 +108,7 @@ function sanitizeReviewForFirestore(review: Review): Record<string, unknown> {
 }
 
 export async function syncDealToFirestore(deal: Deal): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) return false;
   const path = `${DEALS_COLLECTION}/${deal.id}`;
   try {
     await setDoc(doc(db, DEALS_COLLECTION, deal.id), sanitizeDealForFirestore(deal), { merge: true });
@@ -120,11 +120,12 @@ export async function syncDealToFirestore(deal: Deal): Promise<boolean> {
 }
 
 export async function syncDealsBatchToFirestore(deals: Deal[]): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser || deals.length === 0) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser || deals.length === 0) return false;
+  const firestore = db;
   try {
-    const batch = writeBatch(db);
+    const batch = writeBatch(firestore);
     deals.forEach((deal) => {
-      batch.set(doc(db, DEALS_COLLECTION, deal.id), sanitizeDealForFirestore(deal), { merge: true });
+      batch.set(doc(firestore, DEALS_COLLECTION, deal.id), sanitizeDealForFirestore(deal), { merge: true });
     });
     await batch.commit();
     return true;
@@ -135,7 +136,7 @@ export async function syncDealsBatchToFirestore(deals: Deal[]): Promise<boolean>
 }
 
 export async function deleteDealFromFirestore(dealId: string): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) return false;
   const path = `${DEALS_COLLECTION}/${dealId}`;
   try {
     await deleteDoc(doc(db, DEALS_COLLECTION, dealId));
@@ -147,7 +148,7 @@ export async function deleteDealFromFirestore(dealId: string): Promise<boolean> 
 }
 
 export async function syncCouponToFirestore(coupon: Coupon): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) return false;
   const code = coupon.code.trim().toUpperCase();
   const path = `${COUPONS_COLLECTION}/${code}`;
   try {
@@ -160,7 +161,7 @@ export async function syncCouponToFirestore(coupon: Coupon): Promise<boolean> {
 }
 
 export async function deleteCouponFromFirestore(code: string): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) return false;
   const norm = code.trim().toUpperCase();
   const path = `${COUPONS_COLLECTION}/${norm}`;
   try {
@@ -173,7 +174,7 @@ export async function deleteCouponFromFirestore(code: string): Promise<boolean> 
 }
 
 export async function syncCouponRedemptionToFirestore(redemption: CouponRedemption): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || !db) return false;
   const path = `${REDEMPTIONS_COLLECTION}/${redemption.id}`;
   try {
     await setDoc(doc(db, REDEMPTIONS_COLLECTION, redemption.id), {
@@ -194,7 +195,7 @@ export async function syncCouponRedemptionToFirestore(redemption: CouponRedempti
 }
 
 export async function syncReviewToFirestore(review: Review): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || !db) return false;
   const path = `${REVIEWS_COLLECTION}/${review.id}`;
   try {
     await setDoc(doc(db, REVIEWS_COLLECTION, review.id), sanitizeReviewForFirestore(review), { merge: true });
@@ -206,7 +207,7 @@ export async function syncReviewToFirestore(review: Review): Promise<boolean> {
 }
 
 export async function deleteReviewFromFirestore(reviewId: string): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) return false;
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) return false;
   const path = `${REVIEWS_COLLECTION}/${reviewId}`;
   try {
     await deleteDoc(doc(db, REVIEWS_COLLECTION, reviewId));
@@ -222,7 +223,7 @@ export function subscribeCatalogFromFirestore(callbacks: {
   onCoupons?: (coupons: Coupon[]) => void;
   onApprovedReviews?: (reviews: Review[]) => void;
 }): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined' || !db) return () => {};
 
   const unsubs: Array<() => void> = [];
 

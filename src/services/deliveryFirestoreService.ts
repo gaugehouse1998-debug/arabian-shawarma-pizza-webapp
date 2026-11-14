@@ -7,7 +7,7 @@ import {
   setDoc,
   deleteDoc
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, reportFirebaseStatus } from './firebase';
 import { DeliveryZone, RestaurantSettings } from '../types';
 
 export enum OperationType {
@@ -45,13 +45,13 @@ export function handleFirestoreError(
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
       providerInfo:
-        auth.currentUser?.providerData?.map((provider) => ({
+        auth?.currentUser?.providerData?.map((provider) => ({
           providerId: provider.providerId,
           email: provider.email
         })) || []
@@ -74,14 +74,25 @@ let connectionTested = false;
 export async function testFirestoreConnection(): Promise<void> {
   if (connectionTested || typeof window === 'undefined') return;
   connectionTested = true;
+  if (!db) {
+    reportFirebaseStatus('error', 'Firebase backend failed to initialize.');
+    return;
+  }
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    reportFirebaseStatus('offline', 'Device appears offline.');
     return;
   }
   try {
     await getDocFromServer(doc(db, 'restaurantSettings', 'main'));
+    reportFirebaseStatus('connected');
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.toLowerCase().includes('offline') || msg.toLowerCase().includes('unavailable')) {
       console.warn('Firestore operating in offline cache mode until backend connection resumes.');
+      reportFirebaseStatus('offline', msg);
+    } else {
+      console.warn('Firestore connection check failed:', msg);
+      reportFirebaseStatus('error', msg);
     }
   }
 }
@@ -150,7 +161,7 @@ function sanitizeSettingsForFirestore(settings: RestaurantSettings): Record<stri
 }
 
 export async function syncDeliveryZoneToFirestore(zone: DeliveryZone): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) {
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) {
     return false;
   }
   const path = `${ZONES_COLLECTION}/${zone.id}`;
@@ -164,7 +175,7 @@ export async function syncDeliveryZoneToFirestore(zone: DeliveryZone): Promise<b
 }
 
 export async function deleteDeliveryZoneFromFirestore(zoneId: string): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) {
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) {
     return false;
   }
   const path = `${ZONES_COLLECTION}/${zoneId}`;
@@ -178,7 +189,7 @@ export async function deleteDeliveryZoneFromFirestore(zoneId: string): Promise<b
 }
 
 export async function syncRestaurantSettingsToFirestore(settings: RestaurantSettings): Promise<boolean> {
-  if (typeof window === 'undefined' || !auth.currentUser) {
+  if (typeof window === 'undefined' || !db || !auth?.currentUser) {
     return false;
   }
   const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
@@ -194,7 +205,7 @@ export async function syncRestaurantSettingsToFirestore(settings: RestaurantSett
 }
 
 export async function fetchDeliveryZonesFromFirestore(): Promise<DeliveryZone[] | null> {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !db) return null;
   try {
     const snap = await getDocs(collection(db, ZONES_COLLECTION));
     if (snap.empty) return null;
@@ -209,13 +220,19 @@ export function subscribeDeliveryConfigFromFirestore(
   onZones: (zones: DeliveryZone[]) => void,
   onSettings: (settings: Partial<RestaurantSettings>) => void
 ): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined' || !db) {
+    if (typeof window !== 'undefined' && !db) {
+      reportFirebaseStatus('error', 'Firebase backend failed to initialize.');
+    }
+    return () => {};
+  }
 
-  testFirestoreConnection();
+  void testFirestoreConnection();
 
   const unsubZones = onSnapshot(
     collection(db, ZONES_COLLECTION),
     (snapshot) => {
+      reportFirebaseStatus('connected');
       if (!snapshot.empty) {
         const list = snapshot.docs.map((d) => ({ ...(d.data() as DeliveryZone), id: d.id }));
         onZones(list);
