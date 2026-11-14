@@ -49,6 +49,9 @@ import { storageService } from '../../services/storageService';
 import { RecycleBinTab } from './RecycleBinTab';
 import { SecuritySettingsTab } from './SecuritySettingsTab';
 import { MandatoryPasswordChangeModal } from './MandatoryPasswordChangeModal';
+import { AdminDealsPanel } from './AdminDealsPanel';
+import { AdminCouponsPanel } from './AdminCouponsPanel';
+import { AdminReviewsPanel } from './AdminReviewsPanel';
 import {
   Order,
   Product,
@@ -67,16 +70,29 @@ import {
   NotificationItem
 } from '../../types';
 import { OrderInvoiceModal } from '../invoice/OrderInvoiceModal';
+import { LOGO_URL, resolveAssetUrl } from '../../utils/assetUrl';
 
 interface AdminDashboardProps {
   onBackToStore: () => void;
+  initialSection?: string;
+  onSectionChange?: (section: string) => void;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  onBackToStore,
+  initialSection = 'overview',
+  onSectionChange
+}) => {
   const { logout, currentUser, mustChangePassword } = useAuth();
 
   // Current active sidebar module
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>(initialSection);
+
+  useEffect(() => {
+    if (initialSection && initialSection !== activeTab) {
+      setActiveTab(initialSection);
+    }
+  }, [initialSection]);
 
   // Reactive state from storageService
   const [analytics, setAnalytics] = useState(storageService.getAnalytics());
@@ -130,16 +146,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
   // Category CRUD Modal
   const [categoryModalMode, setCategoryModalMode] = useState<'create' | 'edit' | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category>>({});
-
-  // Coupon CRUD Modal
-  const [couponModalOpen, setCouponModalOpen] = useState(false);
-  const [editingCoupon, setEditingCoupon] = useState<Partial<Coupon>>({
-    code: '',
-    discountType: 'percentage',
-    discountValue: 10,
-    minOrderValue: 500,
-    isActive: true
-  });
 
   // Customer Note Modal
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerProfile | null>(null);
@@ -242,11 +248,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
   // 3. Deal Deletion
   const handleDeleteDeal = (deal: Deal) => {
+    const orderRefs = storageService.getDealOrderReferenceCount(deal.id);
     setDeleteTarget({
       id: deal.id,
-      name: `${deal.dealNumber}: ${deal.title}`,
+      name: `${deal.dealNumber}: ${deal.title}${
+        orderRefs > 0 ? ` (Used in ${orderRefs} historical order${orderRefs === 1 ? '' : 's'})` : ''
+      }`,
       type: 'deal',
-      typeName: 'Mega Deal',
+      typeName: orderRefs > 0 ? 'Deal (Safe Archive / Soft Delete)' : 'Mega Deal',
       isSoftDelete: true,
       onConfirm: () => {
         storageService.softDeleteDeal(deal.id, currentUser?.email || 'arabianshawarma@admin');
@@ -258,7 +267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
           type: 'deal',
           countdown: 10
         });
-        showFeedback(`Deal "${deal.dealNumber}: ${deal.title}" moved to Recycle Bin.`);
+        showFeedback(`Deal "${deal.dealNumber}: ${deal.title}" moved to Recycle Bin (order history kept safe).`);
       }
     });
   };
@@ -590,7 +599,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       category: editingProduct.category,
       description: editingProduct.description || '',
       basePrice: Number(editingProduct.basePrice),
-      image: editingProduct.image || '/src/assets/images/hero_3d_burger_1794391292664.jpg',
+      image: editingProduct.image || '/assets/images/hero_3d_burger_1794391292664.jpg',
       sizes: editingProduct.sizes || undefined,
       addons: editingProduct.addons || undefined,
       isAvailable: editingProduct.isAvailable !== false,
@@ -620,26 +629,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
     storageService.saveCategory(newCat);
     setCategoryModalMode(null);
     setEditingCategory({});
-  };
-
-  // Coupon save
-  const handleSaveCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCoupon.code || !editingCoupon.discountValue) return;
-
-    const newCoupon: Coupon = {
-      code: editingCoupon.code.trim().toUpperCase(),
-      discountType: editingCoupon.discountType || 'percentage',
-      discountValue: Number(editingCoupon.discountValue),
-      minOrderValue: Number(editingCoupon.minOrderValue) || 0,
-      maxDiscount: editingCoupon.maxDiscount ? Number(editingCoupon.maxDiscount) : undefined,
-      expiryDate: editingCoupon.expiryDate || undefined,
-      timesUsed: editingCoupon.timesUsed || 0,
-      isActive: editingCoupon.isActive !== false
-    };
-
-    storageService.saveCoupon(newCoupon);
-    setCouponModalOpen(false);
   };
 
   // Save restaurant settings
@@ -762,7 +751,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-neutral-950 border border-neutral-800 p-1 flex items-center justify-center shrink-0">
               <img
-                src="/logo.png"
+                src={LOGO_URL}
                 alt="Arabian Shawarma & Pizza"
                 className="w-full h-full object-contain filter drop-shadow"
               />
@@ -795,6 +784,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                     onBackToStore();
                   } else {
                     setActiveTab(item.id);
+                    onSectionChange?.(item.id);
                   }
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-colors ${
@@ -1242,7 +1232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                     <tr key={product.id} className="hover:bg-neutral-850/40">
                       <td className="py-2.5 flex items-center gap-3">
                         <img
-                          src={product.image}
+                          src={resolveAssetUrl(product.image)}
                           alt={product.name}
                           className="w-10 h-10 rounded-lg object-cover bg-neutral-950 shrink-0 border border-neutral-800"
                         />
@@ -1360,65 +1350,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
         {/* 6. DEALS & PROMOTIONS MANAGEMENT */}
         {activeTab === 'deals' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-white text-base font-display">Regular Deals & Combos ({deals.length})</h2>
-                <p className="text-xs text-neutral-400">Manage all 29 official menu regular deals, combos, and family feasts.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {deals.map((deal) => (
-                <div key={deal.id} className="p-4 bg-neutral-950/70 border border-neutral-800 rounded-xl space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
-                      {deal.dealNumber}
-                    </span>
-                    <span className="font-mono font-bold text-sm text-white">
-                      Rs. {deal.price.toLocaleString()}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-white text-xs leading-snug">{deal.title}</h4>
-                  <ul className="text-[11px] text-neutral-400 space-y-0.5">
-                    {deal.items.map((i, idx) => (
-                      <li key={idx}>· {i}</li>
-                    ))}
-                  </ul>
-                  <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-xs">
-                    <button
-                      onClick={() => {
-                        const newPrice = prompt(`Enter new price for ${deal.dealNumber}:`, String(deal.price));
-                        if (newPrice && !isNaN(Number(newPrice))) {
-                          storageService.saveDeal({ ...deal, price: Number(newPrice) });
-                        }
-                      }}
-                      className="text-amber-400 hover:underline"
-                    >
-                      Change Price
-                    </button>
-                    <button
-                      onClick={() => {
-                        storageService.saveDeal({ ...deal, isActive: !deal.isActive });
-                      }}
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                        deal.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                      }`}
-                    >
-                      {deal.isActive ? 'Active' : 'Disabled'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDeal(deal)}
-                      className="text-[10px] text-neutral-400 hover:text-red-400 p-1"
-                      title="Delete Deal"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AdminDealsPanel
+            deals={deals}
+            categories={categories.map((c) => c.name)}
+            adminEmail={currentUser?.email || 'arabianshawarma@admin'}
+            onDeleteDeal={handleDeleteDeal}
+            onFeedback={showFeedback}
+            onDealsChanged={() => setDeals(storageService.getDeals())}
+          />
         )}
 
         {/* 7. CUSTOMERS / CRM */}
@@ -2171,91 +2110,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
         {/* 11. COUPONS & DISCOUNTS */}
         {activeTab === 'coupons' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-white text-base font-display">Coupons & Promo Codes</h2>
-                <p className="text-xs text-neutral-400">Configure percentage or flat discounts with minimum order thresholds.</p>
-              </div>
-
-              <button
-                onClick={() => setCouponModalOpen(true)}
-                className="px-4 py-2 bg-amber-500 text-neutral-950 font-bold text-xs rounded-xl flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Promo Code</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {coupons.map((coupon) => (
-                <div key={coupon.code} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-sm text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded">
-                      {coupon.code}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-white">
-                      {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `Rs. ${coupon.discountValue} OFF`}
-                    </span>
-                  </div>
-                  <div className="text-xs text-neutral-400 space-y-1">
-                    <div>Min Order: Rs. {coupon.minOrderValue}</div>
-                    {coupon.maxDiscount && <div>Max Cap: Rs. {coupon.maxDiscount}</div>}
-                    <div>Times Used: {coupon.timesUsed}</div>
-                  </div>
-                  <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-xs">
-                    <button
-                      onClick={() => {
-                        storageService.saveCoupon({ ...coupon, isActive: !coupon.isActive });
-                      }}
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                        coupon.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                      }`}
-                    >
-                      {coupon.isActive ? 'Active' : 'Disabled'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCoupon(coupon)}
-                      className="text-red-400 hover:text-red-300 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AdminCouponsPanel
+            coupons={coupons}
+            categories={categories}
+            products={products}
+            onDeleteCoupon={handleDeleteCoupon}
+            onFeedback={showFeedback}
+            onCouponsChanged={() => setCoupons(storageService.getCoupons())}
+          />
         )}
 
         {/* 12. REVIEWS */}
         {activeTab === 'reviews' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4">
-            <h2 className="font-bold text-white text-base font-display">Customer Reviews</h2>
-            <div className="space-y-3">
-              {reviews.map((rev) => (
-                <div key={rev.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-white text-xs">{rev.customerName}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-400 font-mono text-xs">{'★'.repeat(rev.rating)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteReview(rev)}
-                        className="p-1 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-neutral-900 transition-colors cursor-pointer"
-                        title="Delete Review"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-neutral-300">"{rev.comment}"</p>
-                  <div className="text-[10px] text-neutral-500">{rev.date} · Ordered: {rev.itemOrdered || 'Menu'}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AdminReviewsPanel
+            reviews={reviews}
+            adminEmail={currentUser?.email || 'arabianshawarma@admin'}
+            onDeleteReview={handleDeleteReview}
+            onFeedback={showFeedback}
+            onReviewsChanged={() => setReviews(storageService.getReviews())}
+          />
         )}
 
         {/* 13. WEBSITE CONTENT & SETTINGS */}
@@ -2368,7 +2241,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                 {banners.map((b) => (
                   <div key={b.id} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden flex flex-col justify-between">
                     <div className="aspect-video relative overflow-hidden bg-neutral-900">
-                      <img src={b.imageUrl} alt={b.title} className="w-full h-full object-cover" />
+                      <img src={resolveAssetUrl(b.imageUrl)} alt={b.title} className="w-full h-full object-cover" />
                       {b.badge && (
                         <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-neutral-950">
                           {b.badge}
@@ -2886,7 +2759,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
               {editingProduct.image && (
                 <div className="relative w-full h-36 rounded-lg overflow-hidden bg-neutral-900 border border-neutral-800 group">
                   <img
-                    src={editingProduct.image}
+                    src={resolveAssetUrl(editingProduct.image)}
                     alt={editingProduct.name || 'Preview'}
                     className="w-full h-full object-cover"
                   />
@@ -2931,7 +2804,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                   type="text"
                   value={editingProduct.image || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
-                  placeholder="/src/assets/images/... or https://..."
+                  placeholder="/assets/images/... or https://..."
                   className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-white text-[11px]"
                 />
               </div>
@@ -3052,102 +2925,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                 className="px-5 py-2 bg-amber-500 text-neutral-950 font-bold rounded-xl"
               >
                 Save Category
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 5: Coupon Modal */}
-      {couponModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={handleSaveCoupon}
-            className="bg-neutral-900 border border-neutral-800 max-w-md w-full rounded-2xl p-6 space-y-4 text-xs animate-fadeIn"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <h3 className="font-bold text-white text-sm font-display">Create Promo Code</h3>
-              <button
-                type="button"
-                onClick={() => setCouponModalOpen(false)}
-                className="text-neutral-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-neutral-300">Coupon Code *</label>
-              <input
-                type="text"
-                required
-                value={editingCoupon.code || ''}
-                onChange={(e) => setEditingCoupon({ ...editingCoupon, code: e.target.value.toUpperCase() })}
-                placeholder="e.g. SPECIAL20"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-white font-mono uppercase"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-neutral-300">Type</label>
-                <select
-                  value={editingCoupon.discountType}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, discountType: e.target.value as any })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-white"
-                >
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount (PKR)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-neutral-300">Value *</label>
-                <input
-                  type="number"
-                  required
-                  value={editingCoupon.discountValue || ''}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, discountValue: Number(e.target.value) })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-white font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-neutral-300">Min Order (PKR)</label>
-                <input
-                  type="number"
-                  value={editingCoupon.minOrderValue || ''}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, minOrderValue: Number(e.target.value) })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-white font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-neutral-300">Max Discount (PKR)</label>
-                <input
-                  type="number"
-                  value={editingCoupon.maxDiscount || ''}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, maxDiscount: Number(e.target.value) })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-white font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-neutral-800 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCouponModalOpen(false)}
-                className="px-3.5 py-2 bg-neutral-800 text-neutral-300 rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 bg-amber-500 text-neutral-950 font-bold rounded-xl"
-              >
-                Save Coupon
               </button>
             </div>
           </form>

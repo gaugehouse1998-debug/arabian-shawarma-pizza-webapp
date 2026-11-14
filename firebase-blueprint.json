@@ -40,17 +40,94 @@
       "description": "Combo meal deal offer.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "dealNumber": { "type": "string" },
-        "title": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "dealNumber": { "type": "string", "maxLength": 40 },
+        "title": { "type": "string", "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 600 },
+        "category": { "type": "string", "maxLength": 80 },
+        "items": { "type": "array" },
+        "includedItems": { "type": "array" },
         "price": { "type": "number" },
-        "image": { "type": "string" },
+        "originalPrice": { "type": "number" },
+        "discountLabel": { "type": "string", "maxLength": 80 },
+        "displayOrder": { "type": "number" },
+        "image": { "type": "string", "maxLength": 2000 },
+        "badge": { "type": "string", "maxLength": 60 },
         "isActive": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isArchived": { "type": "boolean" },
+        "archivedAt": { "type": "string", "maxLength": 64 },
         "isDeleted": { "type": "boolean" },
-        "deletedAt": { "type": "string" },
-        "deletedBy": { "type": "string" }
+        "deletedAt": { "type": "string", "maxLength": 64 },
+        "deletedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "dealNumber", "title", "price", "image", "isActive"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Promotional coupon code with validity dates, usage caps, and category/product restrictions.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 64, "pattern": "^[A-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 140 },
+        "description": { "type": "string", "maxLength": 500 },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "minOrderValue": { "type": "number" },
+        "maxDiscount": { "type": "number" },
+        "startDate": { "type": "string", "maxLength": 64 },
+        "expiryDate": { "type": "string", "maxLength": 64 },
+        "usageLimit": { "type": "number" },
+        "perCustomerLimit": { "type": "number" },
+        "applicableCategories": { "type": "array" },
+        "applicableProductIds": { "type": "array" },
+        "timesUsed": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string", "maxLength": 64 },
+        "deletedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["code", "discountType", "discountValue", "minOrderValue", "timesUsed", "isActive"]
+    },
+    "CouponRedemption": {
+      "title": "CouponRedemption",
+      "description": "Audit record of a completed coupon redemption linked to a confirmed order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "couponCode": { "type": "string", "maxLength": 64 },
+        "orderId": { "type": "string", "maxLength": 64 },
+        "customerPhone": { "type": "string", "maxLength": 40 },
+        "customerEmail": { "type": "string", "maxLength": 160 },
+        "discountAmount": { "type": "number" },
+        "orderSubtotal": { "type": "number" },
+        "redeemedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "couponCode", "orderId", "customerPhone", "discountAmount", "orderSubtotal", "redeemedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Verified customer feedback linked optionally to an order and moderated by admins.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orderId": { "type": "string", "maxLength": 64 },
+        "customerName": { "type": "string", "maxLength": 120 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 1200 },
+        "date": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "hidden"] },
+        "isApproved": { "type": "boolean" },
+        "itemOrdered": { "type": "string", "maxLength": 200 },
+        "moderatedAt": { "type": "string", "maxLength": 64 },
+        "moderatedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "customerName", "rating", "comment", "date", "isApproved"]
     },
     "Order": {
       "title": "Order",
@@ -168,6 +245,18 @@
     "/restaurantSettings/{settingId}": {
       "schema": "RestaurantSettings",
       "description": "Restaurant coordinates, delivery radius, and store preferences"
+    },
+    "/coupons/{couponCode}": {
+      "schema": "Coupon",
+      "description": "Promotional discount coupons"
+    },
+    "/couponRedemptions/{redemptionId}": {
+      "schema": "CouponRedemption",
+      "description": "Completed order coupon redemptions"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer reviews and moderation statuses"
     }
   }
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, Check, Sparkles, Flame, Info } from 'lucide-react';
 import { Product, ProductSize, ProductAddon } from '../../types';
 import { useCart } from '../../context/CartContext';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -68,7 +69,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         {/* Modal Top Bar */}
         <div className="relative h-48 sm:h-56 bg-neutral-950 overflow-hidden">
           <img
-            src={product.image}
+            src={resolveAssetUrl(product.image)}
             alt={product.name}
             className="w-full h-full object-cover opacity-85"
           />

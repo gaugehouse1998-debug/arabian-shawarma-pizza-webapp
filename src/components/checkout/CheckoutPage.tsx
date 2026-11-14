@@ -15,7 +15,9 @@ import {
   Building,
   Smartphone,
   MapPin,
-  Navigation
+  Navigation,
+  Tag,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
@@ -46,8 +48,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, onOrde
     tax,
     total,
     couponCode,
-    couponDiscount
+    couponDiscount,
+    couponError,
+    couponSuccess,
+    applyCoupon,
+    removeCoupon
   } = useCart();
+
+  const [promoInput, setPromoInput] = useState('');
 
   const { currentUser } = useAuth();
   const paymentSettings = storageService.getPaymentSettings();
@@ -89,6 +97,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, onOrde
   const [screenshotPreview, setScreenshotPreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const handleApplyPromo = () => {
+    if (!promoInput.trim()) return;
+    const ok = applyCoupon(promoInput, { customerPhone: phone, customerEmail: email });
+    if (ok) {
+      setPromoInput('');
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -793,6 +809,66 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, onOrde
                     </span>
                   </div>
                 ))}
+              </div>
+
+              {/* Promo / Coupon Application Box */}
+              <div className="pt-3 border-t border-neutral-800 space-y-2">
+                <label className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Promo Code / Coupon</span>
+                </label>
+
+                {couponCode ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                      <CheckCircle className="w-4 h-4 shrink-0" />
+                      <span>
+                        {couponCode} applied (-Rs. {couponDiscount.toLocaleString()})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      className="text-neutral-400 hover:text-red-400 text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyPromo();
+                        }
+                      }}
+                      placeholder="Enter promo code..."
+                      className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 font-mono uppercase"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-xl border border-neutral-700 transition-colors whitespace-nowrap cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+
+                {couponError && (
+                  <div className="text-[11px] text-red-400 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{couponError}</span>
+                  </div>
+                )}
+                {couponSuccess && couponCode && (
+                  <div className="text-[11px] text-emerald-400">{couponSuccess}</div>
+                )}
               </div>
 
               {/* Summary Calculations */}

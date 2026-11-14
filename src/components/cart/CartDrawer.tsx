@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Trash2, Plus, Minus, ArrowRight, Tag, Bike, Store, ShieldCheck, AlertCircle, MapPin } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 interface CartDrawerProps {
   onProceedToCheckout: () => void;
@@ -211,7 +212,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
                 >
                   {/* Item Image */}
                   <img
-                    src={item.image}
+                    src={resolveAssetUrl(item.image)}
                     alt={item.name}
                     className="w-16 h-16 rounded-lg object-cover bg-neutral-900 shrink-0 border border-neutral-800"
                   />

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Flame, Plus, Star, Tag, Check, ArrowRight, Layers } from 'lucide-react';
 import { Product, Deal, Category } from '../../types';
 import { storageService } from '../../services/storageService';
 import { useCart } from '../../context/CartContext';
 import { CategoryCircularBar } from './CategoryCircularBar';
 import { ProductDetailModal } from '../menu/ProductDetailModal';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 interface FoodDiscoverySectionProps {
   onExploreAllDeals: () => void;
@@ -12,9 +13,21 @@ interface FoodDiscoverySectionProps {
 
 export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onExploreAllDeals }) => {
   const { addToCart } = useCart();
-  const categories = storageService.getCategories().filter((c) => c.isActive && c.id !== 'cat-deals');
-  const allProducts = storageService.getProducts();
-  const allDeals = storageService.getDeals().filter((d) => d.isActive);
+  const [categories, setCategories] = useState<Category[]>(() =>
+    storageService.getCategories().filter((c) => c.isActive && c.id !== 'cat-deals')
+  );
+  const [allProducts, setAllProducts] = useState<Product[]>(() => storageService.getProducts());
+  const [allDeals, setAllDeals] = useState<Deal[]>(() => storageService.getPublicActiveDeals());
+
+  useEffect(() => {
+    const refresh = () => {
+      setCategories(storageService.getCategories().filter((c) => c.isActive && c.id !== 'cat-deals'));
+      setAllProducts(storageService.getProducts());
+      setAllDeals(storageService.getPublicActiveDeals());
+    };
+    window.addEventListener('asp_data_updated', refresh);
+    return () => window.removeEventListener('asp_data_updated', refresh);
+  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeProductForModal, setActiveProductForModal] = useState<Product | null>(null);
@@ -22,9 +35,8 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
 
   // Sections
   const bestSellers = allProducts.filter((p) => p.isBestSeller).slice(0, 4);
-  const featuredProducts = allProducts.filter((p) => p.isFeatured && !p.isBestSeller).slice(0, 4);
-  const specialDeals = allDeals.slice(0, 3);
-  const recentDishes = allProducts.slice(0, 4);
+  const featuredDealsList = allDeals.filter((d) => d.isFeatured);
+  const specialDeals = (featuredDealsList.length > 0 ? featuredDealsList : allDeals).slice(0, 3);
 
   // Filtered collection based on category selection
   const collectionProducts = selectedCategory === 'All'
@@ -97,7 +109,7 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                 <div>
                   <div className="relative aspect-4/3 bg-neutral-950 overflow-hidden cursor-pointer" onClick={() => setActiveProductForModal(product)}>
                     <img
-                      src={product.image}
+                      src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
@@ -162,9 +174,9 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
             </div>
             <button
               onClick={onExploreAllDeals}
-              className="text-xs text-amber-400 hover:underline flex items-center gap-1"
+              className="text-xs text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>Explore All 29 Deals</span>
+              <span>Explore All {allDeals.length} Deals</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -189,7 +201,7 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                       )}
                     </div>
                     <div className="aspect-16/9 rounded-xl overflow-hidden bg-neutral-950">
-                      <img src={deal.image} alt={deal.title} className="w-full h-full object-cover" />
+                      <img src={resolveAssetUrl(deal.image)} alt={deal.title} className="w-full h-full object-cover" />
                     </div>
                     <h3 className="font-bold text-white text-sm font-display leading-tight">{deal.title}</h3>
                     <ul className="text-xs text-neutral-400 space-y-0.5">
@@ -280,7 +292,7 @@ export const FoodDiscoverySection: React.FC<FoodDiscoverySectionProps> = ({ onEx
                     onClick={() => setActiveProductForModal(product)}
                   >
                     <img
-                      src={product.image}
+                      src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

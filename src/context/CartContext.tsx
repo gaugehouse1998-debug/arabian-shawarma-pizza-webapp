@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { storageService } from '../services/storageService';
 import { subscribeDeliveryConfigFromFirestore } from '../services/deliveryFirestoreService';
+import { subscribeCatalogFromFirestore } from '../services/catalogFirestoreService';
 
 const CONFIRMED_LOCATION_KEY = 'asp_confirmed_delivery_location_v1';
 const POPUP_SEEN_KEY = 'asp_delivery_popup_seen_v1';
@@ -32,7 +33,10 @@ interface CartContextType {
   couponDiscount: number;
   couponError: string;
   couponSuccess: string;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (
+    code: string,
+    customerInfo?: { customerPhone?: string; customerEmail?: string }
+  ) => boolean;
   removeCoupon: () => void;
   deliveryType: 'delivery' | 'pickup';
   setDeliveryType: (type: 'delivery' | 'pickup') => void;
@@ -119,8 +123,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    const hash = window.location.hash.replace('#/', '').replace('#', '');
-    if (hash === 'admin') return false;
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    if (hash === 'admin' || hash.startsWith('admin/')) return false;
     try {
       const seen = localStorage.getItem(POPUP_SEEN_KEY);
       return !seen;
@@ -200,9 +204,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    const unsubscribeCatalog = subscribeCatalogFromFirestore({
+      onDeals: (remoteDeals) => storageService.applyRemoteDeals(remoteDeals),
+      onCoupons: (remoteCoupons) => storageService.applyRemoteCoupons(remoteCoupons),
+      onApprovedReviews: (remoteReviews) => storageService.applyRemoteReviews(remoteReviews)
+    });
+
     return () => {
       window.removeEventListener('asp_data_updated', handleStorageUpdate);
       unsubscribeFirestore();
+      unsubscribeCatalog();
     };
   }, [refreshDeliveryData]);
 
@@ -376,10 +387,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Recalculate coupon if subtotal changes
+  // Recalculate coupon if subtotal or items change
   useEffect(() => {
     if (couponCode && subtotal > 0) {
-      const res = storageService.validateCoupon(couponCode, subtotal);
+      const res = storageService.validateCoupon(couponCode, subtotal, { items });
       if (res.valid) {
         setCouponDiscount(res.discount);
         setCouponSuccess(res.message);
@@ -392,16 +403,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setCouponDiscount(0);
     }
-  }, [subtotal, couponCode]);
+  }, [subtotal, items, couponCode]);
 
-  const applyCoupon = (code: string) => {
+  const applyCoupon = (
+    code: string,
+    customerInfo?: { customerPhone?: string; customerEmail?: string }
+  ) => {
     if (!code.trim()) {
       setCouponError('Please enter a coupon code.');
       return false;
     }
-    const res = storageService.validateCoupon(code, subtotal);
+    const res = storageService.validateCoupon(code, subtotal, {
+      items,
+      customerPhone: customerInfo?.customerPhone,
+      customerEmail: customerInfo?.customerEmail
+    });
     if (res.valid) {
-      setCouponCode(code.trim().toUpperCase());
+      setCouponCode(res.coupon?.code || code.trim().toUpperCase());
       setCouponDiscount(res.discount);
       setCouponSuccess(res.message);
       setCouponError('');

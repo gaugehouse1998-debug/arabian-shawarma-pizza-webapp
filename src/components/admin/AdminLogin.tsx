@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { LOGO_URL } from '../../utils/assetUrl';
 
 interface AdminLoginProps {
   onSuccess: () => void;
@@ -44,7 +45,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onBackToStore
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-neutral-950 border border-neutral-800 p-2 flex items-center justify-center mx-auto shadow-xl">
             <img
-              src="/logo.png"
+              src={LOGO_URL}
               alt="Arabian Shawarma & Pizza"
               className="w-full h-full object-contain filter drop-shadow"
             />

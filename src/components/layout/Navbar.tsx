@@ -3,6 +3,7 @@ import { ShoppingBag, Phone, Clock, User, Shield, Menu as MenuIcon, X, MapPin } 
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { storageService } from '../../services/storageService';
+import { LOGO_URL } from '../../utils/assetUrl';
 
 interface NavbarProps {
   activeTab: string;
@@ -94,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 via-amber-600 to-amber-500 p-0.5 shadow-lg shadow-red-500/20 group-hover:scale-105 transition-transform duration-200">
               <div className="w-full h-full bg-neutral-950 rounded-[10px] flex items-center justify-center p-1.5 overflow-hidden">
                 <img
-                  src="/logo.png"
+                  src={LOGO_URL}
                   alt="Arabian Shawarma & Pizza"
                   className="w-full h-full object-contain filter drop-shadow"
                 />

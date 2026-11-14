@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Phone, Clock, MessageSquare, Star, Send, ShieldCheck, Heart, Award, Utensils, Navigation } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { useCart } from '../../context/CartContext';
@@ -6,7 +6,20 @@ import { Review } from '../../types';
 
 export const AboutSection: React.FC = () => {
   const { restaurantSettings: settings, activeZones, openLocationModal } = useCart();
-  const reviews = storageService.getReviews().filter((r) => r.isApproved);
+  const [reviews, setReviews] = useState<Review[]>(() => storageService.getApprovedReviews());
+
+  useEffect(() => {
+    const refreshReviews = () => {
+      setReviews(storageService.getApprovedReviews());
+    };
+    window.addEventListener('asp_data_updated', refreshReviews);
+    return () => window.removeEventListener('asp_data_updated', refreshReviews);
+  }, []);
+
+  const averageRating =
+    reviews.length > 0
+      ? (reviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1)
+      : null;
 
   const [customerName, setCustomerName] = useState('');
   const [rating, setRating] = useState(5);
@@ -18,21 +31,18 @@ export const AboutSection: React.FC = () => {
     e.preventDefault();
     if (!customerName.trim() || !comment.trim()) return;
 
-    const newRev: Review = {
-      id: `rev-${Date.now()}`,
+    storageService.submitOrderReview({
       customerName: customerName.trim(),
       rating,
       comment: comment.trim(),
-      date: new Date().toISOString().split('T')[0],
-      isApproved: true,
       itemOrdered: itemOrdered.trim() || 'Menu Item'
-    };
+    });
 
-    storageService.saveReview(newRev);
     setSubmitted(true);
     setCustomerName('');
     setComment('');
     setItemOrdered('');
+    setRating(5);
   };
 
   return (
@@ -195,33 +205,53 @@ export const AboutSection: React.FC = () => {
                 What Our Customers Say
               </h2>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {reviews.map((rev) => (
-              <div
-                key={rev.id}
-                className="p-5 rounded-2xl bg-neutral-900/70 border border-neutral-800 space-y-3 flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center text-amber-400 text-sm">
-                    {'★'.repeat(rev.rating)}
-                  </div>
-                  <p className="text-xs text-neutral-300 leading-relaxed italic">
-                    "{rev.comment}"
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between text-[11px]">
-                  <div>
-                    <span className="font-semibold text-white block">{rev.customerName}</span>
-                    <span className="text-neutral-500 font-mono">{rev.date}</span>
-                  </div>
-                  <span className="text-neutral-400">{rev.itemOrdered}</span>
-                </div>
+            {averageRating && reviews.length > 0 && (
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs">
+                <span className="text-amber-400 font-bold text-base font-mono flex items-center gap-1">
+                  <Star className="w-4 h-4 fill-amber-400" />
+                  {averageRating}
+                </span>
+                <span className="text-neutral-400">
+                  Based on {reviews.length} approved review{reviews.length === 1 ? '' : 's'}
+                </span>
               </div>
-            ))}
+            )}
           </div>
+
+          {reviews.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-xs text-neutral-400">
+              No approved customer reviews yet. Order a meal or share your dining experience below!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {reviews.map((rev) => (
+                <div
+                  key={rev.id}
+                  className="p-5 rounded-2xl bg-neutral-900/70 border border-neutral-800 space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center text-amber-400 text-sm">
+                      {'★'.repeat(rev.rating)}
+                      <span className="text-neutral-700">{'★'.repeat(Math.max(0, 5 - rev.rating))}</span>
+                    </div>
+                    <p className="text-xs text-neutral-300 leading-relaxed italic">
+                      "{rev.comment}"
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between text-[11px]">
+                    <div>
+                      <span className="font-semibold text-white block">{rev.customerName}</span>
+                      <span className="text-neutral-500 font-mono">{rev.date}</span>
+                    </div>
+                    {rev.itemOrdered && (
+                      <span className="text-neutral-400 text-right line-clamp-1 max-w-[140px]">{rev.itemOrdered}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Submit Review Form */}
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-xl mx-auto space-y-4">
@@ -235,7 +265,9 @@ export const AboutSection: React.FC = () => {
                     key={star}
                     type="button"
                     onClick={() => setRating(star)}
-                    className="p-0.5 hover:scale-110 transition-transform"
+                    className={`p-0.5 hover:scale-110 transition-transform cursor-pointer ${
+                      star <= rating ? 'text-amber-400' : 'text-neutral-600'
+                    }`}
                   >
                     ★
                   </button>
@@ -244,8 +276,15 @@ export const AboutSection: React.FC = () => {
             </div>
 
             {submitted ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl text-center">
-                Thank you! Your review has been added and published.
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl text-center space-y-2">
+                <p>Thank you! Your review has been submitted and will appear once approved.</p>
+                <button
+                  type="button"
+                  onClick={() => setSubmitted(false)}
+                  className="text-amber-400 hover:underline font-semibold cursor-pointer"
+                >
+                  Write another review
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmitReview} className="space-y-3 text-xs">

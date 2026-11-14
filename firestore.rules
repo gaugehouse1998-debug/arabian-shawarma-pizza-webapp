@@ -29,13 +29,49 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    match /deals/{dealId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDeal(data) {
+      return data.keys().hasAll(['id', 'dealNumber', 'title', 'price', 'image', 'isActive']) &&
+        data.keys().hasOnly([
+          'id', 'dealNumber', 'title', 'description', 'category', 'items', 'includedItems',
+          'price', 'originalPrice', 'discountLabel', 'displayOrder', 'image',
+          'isActive', 'isFeatured', 'isArchived', 'archivedAt', 'badge',
+          'startDate', 'expiryDate', 'createdAt', 'updatedAt',
+          'isDeleted', 'deletedAt', 'deletedBy'
+        ]) &&
+        isValidId(data.id) &&
+        data.dealNumber is string && data.dealNumber.size() >= 1 && data.dealNumber.size() <= 40 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 600)) &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 80)) &&
+        (!('items' in data) || (data.items is list && data.items.size() <= 40)) &&
+        (!('includedItems' in data) || (data.includedItems is list && data.includedItems.size() <= 40)) &&
+        data.price is number && data.price > 0 &&
+        (!('originalPrice' in data) || (data.originalPrice is number && data.originalPrice >= 0)) &&
+        (!('discountLabel' in data) || (data.discountLabel is string && data.discountLabel.size() <= 80)) &&
+        (!('displayOrder' in data) || (data.displayOrder is number && data.displayOrder >= 0)) &&
+        data.image is string && data.image.size() <= 2000000 &&
+        (!('badge' in data) || (data.badge is string && data.badge.size() <= 60)) &&
+        data.isActive is bool &&
+        (!('isFeatured' in data) || data.isFeatured is bool) &&
+        (!('isArchived' in data) || data.isArchived is bool) &&
+        (!('archivedAt' in data) || (data.archivedAt is string && data.archivedAt.size() <= 64)) &&
+        (!('startDate' in data) || (data.startDate is string && data.startDate.size() <= 64)) &&
+        (!('expiryDate' in data) || (data.expiryDate is string && data.expiryDate.size() <= 64)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+        (!('isDeleted' in data) || data.isDeleted is bool) &&
+        (!('deletedAt' in data) || (data.deletedAt is string && data.deletedAt.size() <= 64)) &&
+        (!('deletedBy' in data) || (data.deletedBy is string && data.deletedBy.size() <= 128));
+    }
+
+    match /deals/{dealId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidId(dealId) && isValidDeal(request.resource.data);
+      allow delete: if isAdmin() && isValidId(dealId);
     }
 
     function isValidDeliveryZone(data) {
@@ -84,16 +120,91 @@ service cloud.firestore {
       allow delete: if isAdmin() && isValidId(settingId);
     }
 
-    match /reviews/{reviewId} {
-      allow read: if resource.data.isApproved == true || isAdmin();
-      allow create: if request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
-      allow update, delete: if isAdmin();
+    function isValidReview(data) {
+      return data.keys().hasAll(['id', 'customerName', 'rating', 'comment', 'date', 'isApproved']) &&
+        data.keys().hasOnly([
+          'id', 'orderId', 'customerName', 'rating', 'comment', 'date',
+          'createdAt', 'status', 'isApproved', 'itemOrdered', 'moderatedAt', 'moderatedBy'
+        ]) &&
+        isValidId(data.id) &&
+        (!('orderId' in data) || (data.orderId is string && data.orderId.size() <= 64)) &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 1200 &&
+        data.date is string && data.date.size() <= 32 &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        (!('status' in data) || data.status in ['pending', 'approved', 'rejected', 'hidden']) &&
+        data.isApproved is bool &&
+        (!('itemOrdered' in data) || (data.itemOrdered is string && data.itemOrdered.size() <= 200)) &&
+        (!('moderatedAt' in data) || (data.moderatedAt is string && data.moderatedAt.size() <= 64)) &&
+        (!('moderatedBy' in data) || (data.moderatedBy is string && data.moderatedBy.size() <= 128));
     }
 
-    // Coupons - read with restricted usage validation, write only admin
+    match /reviews/{reviewId} {
+      allow read: if (resource.data.isApproved == true && (!('status' in resource.data) || resource.data.status == 'approved')) || isAdmin();
+      allow create: if isValidId(reviewId) &&
+        isValidReview(request.resource.data) &&
+        (isAdmin() || (request.resource.data.isApproved == false && request.resource.data.status == 'pending'));
+      allow update: if isAdmin() && isValidId(reviewId) && isValidReview(request.resource.data);
+      allow delete: if isAdmin() && isValidId(reviewId);
+    }
+
+    function isValidCoupon(data) {
+      return data.keys().hasAll(['code', 'discountType', 'discountValue', 'minOrderValue', 'timesUsed', 'isActive']) &&
+        data.keys().hasOnly([
+          'code', 'title', 'description', 'discountType', 'discountValue', 'minOrderValue',
+          'maxDiscount', 'startDate', 'expiryDate', 'usageLimit', 'perCustomerLimit',
+          'applicableCategories', 'applicableProductIds', 'timesUsed', 'isActive',
+          'createdAt', 'updatedAt', 'isDeleted', 'deletedAt', 'deletedBy'
+        ]) &&
+        data.code is string && data.code.size() >= 2 && data.code.size() <= 64 &&
+        (!('title' in data) || (data.title is string && data.title.size() <= 140)) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+        data.discountType in ['percentage', 'fixed'] &&
+        data.discountValue is number && data.discountValue > 0 &&
+        data.minOrderValue is number && data.minOrderValue >= 0 &&
+        (!('maxDiscount' in data) || (data.maxDiscount is number && data.maxDiscount >= 0)) &&
+        (!('startDate' in data) || (data.startDate is string && data.startDate.size() <= 64)) &&
+        (!('expiryDate' in data) || (data.expiryDate is string && data.expiryDate.size() <= 64)) &&
+        (!('usageLimit' in data) || (data.usageLimit is number && data.usageLimit >= 1)) &&
+        (!('perCustomerLimit' in data) || (data.perCustomerLimit is number && data.perCustomerLimit >= 1)) &&
+        (!('applicableCategories' in data) || (data.applicableCategories is list && data.applicableCategories.size() <= 40)) &&
+        (!('applicableProductIds' in data) || (data.applicableProductIds is list && data.applicableProductIds.size() <= 100)) &&
+        data.timesUsed is number && data.timesUsed >= 0 &&
+        data.isActive is bool &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+        (!('isDeleted' in data) || data.isDeleted is bool) &&
+        (!('deletedAt' in data) || (data.deletedAt is string && data.deletedAt.size() <= 64)) &&
+        (!('deletedBy' in data) || (data.deletedBy is string && data.deletedBy.size() <= 128));
+    }
+
     match /coupons/{couponCode} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(couponCode) && isValidCoupon(request.resource.data);
+      allow delete: if isAdmin() && isValidId(couponCode);
+    }
+
+    function isValidCouponRedemption(data) {
+      return data.keys().hasAll(['id', 'couponCode', 'orderId', 'customerPhone', 'discountAmount', 'orderSubtotal', 'redeemedAt']) &&
+        data.keys().hasOnly([
+          'id', 'couponCode', 'orderId', 'customerPhone', 'customerEmail',
+          'discountAmount', 'orderSubtotal', 'redeemedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.couponCode is string && data.couponCode.size() >= 2 && data.couponCode.size() <= 64 &&
+        data.orderId is string && data.orderId.size() >= 3 && data.orderId.size() <= 64 &&
+        data.customerPhone is string && data.customerPhone.size() >= 7 && data.customerPhone.size() <= 40 &&
+        (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 160)) &&
+        data.discountAmount is number && data.discountAmount >= 0 &&
+        data.orderSubtotal is number && data.orderSubtotal > 0 &&
+        data.redeemedAt is string && data.redeemedAt.size() <= 64;
+    }
+
+    match /couponRedemptions/{redemptionId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(redemptionId) && isValidCouponRedemption(request.resource.data);
+      allow update, delete: if isAdmin() && isValidId(redemptionId);
     }
 
     // Customer Profiles & CRM

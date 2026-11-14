@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, User, Phone, Mail, MapPin, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { LOGO_URL } from '../../utils/assetUrl';
 
 interface CustomerAuthModalProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-neutral-950 border border-neutral-800 p-1 flex items-center justify-center shrink-0">
               <img
-                src="/logo.png"
+                src={LOGO_URL}
                 alt="Arabian Shawarma & Pizza"
                 className="w-full h-full object-contain filter drop-shadow"
               />

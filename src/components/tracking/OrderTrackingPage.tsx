@@ -10,11 +10,14 @@ import {
   Phone,
   Printer,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Star,
+  MessageSquareHeart
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { Order, OrderStatus } from '../../types';
 import { OrderInvoiceModal } from '../invoice/OrderInvoiceModal';
+import { ReviewPromptModal } from '../reviews/ReviewPromptModal';
 
 interface OrderTrackingPageProps {
   initialOrderId?: string;
@@ -38,6 +41,8 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [hasReviewForActive, setHasReviewForActive] = useState(false);
 
   // Load initial order if provided or listen for live changes
   useEffect(() => {
@@ -46,6 +51,7 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
       if (order) {
         setActiveOrder(order);
         setHasSearched(true);
+        setHasReviewForActive(storageService.hasReviewForOrder(order.id));
       }
     } else {
       // Find latest order from storage as convenient default
@@ -54,16 +60,18 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
         setActiveOrder(orders[0]);
         setSearchId(orders[0].id);
         setHasSearched(true);
+        setHasReviewForActive(storageService.hasReviewForOrder(orders[0].id));
       }
     }
   }, [initialOrderId]);
 
-  // Listen to storage broadcast updates so status refreshes in real-time
+  // Listen to storage broadcast updates so status and review status refresh in real-time
   useEffect(() => {
     const handleUpdate = () => {
       if (activeOrder) {
         const refreshed = storageService.getOrderById(activeOrder.id);
         if (refreshed) setActiveOrder(refreshed);
+        setHasReviewForActive(storageService.hasReviewForOrder(activeOrder.id));
       }
     };
 
@@ -78,6 +86,7 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
     setHasSearched(true);
     const found = storageService.getOrderById(searchId.trim());
     setActiveOrder(found || null);
+    setHasReviewForActive(found ? storageService.hasReviewForOrder(found.id) : false);
   };
 
   const getStepIndex = (currentStatus: OrderStatus) => {
@@ -332,6 +341,41 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
               </div>
             </div>
           </div>
+          {/* Post-Delivery Review Invitation */}
+          {activeOrder.status === 'delivered' && (
+            <div className="pt-4 border-t border-neutral-800">
+              {hasReviewForActive ? (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <span>
+                      <strong>Thank you!</strong> Your review for order #{activeOrder.id} has been recorded.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#EA580C]/15 via-[#F59E0B]/10 to-neutral-950 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                      <MessageSquareHeart className="w-4 h-4 text-[#EA580C]" />
+                      <span>Your Order Has Been Delivered!</span>
+                    </div>
+                    <p className="text-xs text-neutral-300">
+                      Enjoyed your meal from Arabian Shawarma &amp; Pizza? Share a quick rating and help others decide.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(true)}
+                    className="px-4 py-2.5 bg-gradient-to-r from-[#EA580C] to-[#F59E0B] hover:brightness-110 text-neutral-950 font-extrabold text-xs rounded-xl inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-all"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-neutral-950" />
+                    <span>Rate &amp; Review Order</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : hasSearched ? (
         <div className="text-center py-16 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-3">
@@ -349,6 +393,26 @@ export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({
         <OrderInvoiceModal
           order={activeOrder}
           onClose={() => setIsInvoiceOpen(false)}
+        />
+      )}
+
+      {/* Post-Delivery Review Modal */}
+      {isReviewModalOpen && activeOrder && (
+        <ReviewPromptModal
+          order={activeOrder}
+          isOpen={isReviewModalOpen}
+          onDismiss={() => setIsReviewModalOpen(false)}
+          onSubmitted={(orderId) => {
+            setHasReviewForActive(true);
+            try {
+              const raw = localStorage.getItem('asp_review_prompt_state_v1');
+              const state = raw ? JSON.parse(raw) : {};
+              state[orderId] = 'submitted';
+              localStorage.setItem('asp_review_prompt_state_v1', JSON.stringify(state));
+            } catch {
+              // ignore
+            }
+          }}
         />
       )}
     </div>

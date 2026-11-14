@@ -67,20 +67,33 @@ export interface Category {
   deletedBy?: string;
 }
 
+export interface DealIncludedItem {
+  name: string;
+  quantity: number;
+}
+
 export interface Deal {
   id: string;
   dealNumber: string; // e.g., "DEAL 01", "DEAL 28"
   title: string;
   description: string;
+  category?: string;
   items: string[];
+  includedItems?: DealIncludedItem[];
   price: number;
   originalPrice?: number;
+  discountLabel?: string;
+  displayOrder?: number;
   image: string;
   isActive: boolean;
   isFeatured?: boolean;
+  isArchived?: boolean;
+  archivedAt?: string;
   badge?: string;
   startDate?: string;
   expiryDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
@@ -170,17 +183,36 @@ export interface CustomerProfile {
 
 export interface Coupon {
   code: string;
+  title?: string;
+  description?: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minOrderValue: number;
   maxDiscount?: number;
+  startDate?: string;
   expiryDate?: string;
   usageLimit?: number;
+  perCustomerLimit?: number;
+  applicableCategories?: string[];
+  applicableProductIds?: string[];
   timesUsed: number;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
+}
+
+export interface CouponRedemption {
+  id: string;
+  couponCode: string;
+  orderId: string;
+  customerPhone: string;
+  customerEmail?: string;
+  discountAmount: number;
+  orderSubtotal: number;
+  redeemedAt: string;
 }
 
 export interface BankAccount {
@@ -271,14 +303,21 @@ export interface RestaurantSettings {
   announcement: string;
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'hidden';
+
 export interface Review {
   id: string;
+  orderId?: string;
   customerName: string;
   rating: number;
   comment: string;
   date: string;
+  createdAt?: string;
+  status?: ReviewStatus;
   isApproved: boolean;
   itemOrdered?: string;
+  moderatedAt?: string;
+  moderatedBy?: string;
 }
 
 export interface NotificationItem {

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { RecycleBinItem } from '../../types';
 import { storageService } from '../../services/storageService';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 export const RecycleBinTab: React.FC = () => {
   const [items, setItems] = useState<RecycleBinItem[]>(storageService.getRecycleBinItems());
@@ -221,7 +222,7 @@ export const RecycleBinTab: React.FC = () => {
                         {item.imageUrl ? (
                           <div className="w-12 h-12 rounded-xl bg-neutral-950 overflow-hidden shrink-0 border border-neutral-800">
                             <img
-                              src={item.imageUrl}
+                              src={resolveAssetUrl(item.imageUrl)}
                               alt={item.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {

@@ -1,12 +1,24 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, initializeFirestore, Firestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import firebaseConfig from '../../firebase-applet-config.json';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
+import appletFirebaseConfig from '../../firebase-applet-config.json';
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const resolvedConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletFirebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletFirebaseConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletFirebaseConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletFirebaseConfig.storageBucket,
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletFirebaseConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || appletFirebaseConfig.appId
+};
+
+const app: FirebaseApp =
+  getApps().length === 0 ? initializeApp(resolvedConfig) : getApps()[0];
 
 function createFirestoreInstance(): Firestore {
+  const databaseId = appletFirebaseConfig.firestoreDatabaseId || '(default)';
   try {
     return initializeFirestore(
       app,
@@ -14,15 +26,15 @@ function createFirestoreInstance(): Firestore {
         experimentalForceLongPolling: true,
         ignoreUndefinedProperties: true
       },
-      firebaseConfig.firestoreDatabaseId
+      databaseId
     );
   } catch {
-    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    return getFirestore(app, databaseId);
   }
 }
 
-export const db = createFirestoreInstance();
-export const auth = getAuth(app);
-export const storage = getStorage(app);
+export const db: Firestore = createFirestoreInstance();
+export const auth: Auth = getAuth(app);
+export const storage: FirebaseStorage = getStorage(app);
 
 export default app;

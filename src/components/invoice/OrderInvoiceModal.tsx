@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, ChefHat, FileText } from 'lucide-react';
 import { Order } from '../../types';
 import { storageService } from '../../services/storageService';
+import { LOGO_URL } from '../../utils/assetUrl';
 
 interface OrderInvoiceModalProps {
   order: Order;
@@ -73,7 +74,7 @@ export const OrderInvoiceModal: React.FC<OrderInvoiceModalProps> = ({ order, onC
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-neutral-100 border border-neutral-200 p-1 flex items-center justify-center shrink-0">
                     <img
-                      src="/logo.png"
+                      src={LOGO_URL}
                       alt="Arabian Shawarma & Pizza"
                       className="w-full h-full object-contain"
                     />

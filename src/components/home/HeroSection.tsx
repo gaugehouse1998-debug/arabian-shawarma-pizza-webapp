@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Flame, Sparkles, Truck, ShieldCheck, Clock, Award, Star } from 'lucide-react';
 import { storageService } from '../../services/storageService';
+import { DEFAULT_BURGER_IMAGE } from '../../utils/assetUrl';
 
 interface HeroSectionProps {
   onOrderNow: () => void;
@@ -124,7 +125,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 }}
               >
                 <img
-                  src="/src/assets/images/hero_3d_burger_1794391292664.jpg"
+                  src={DEFAULT_BURGER_IMAGE}
                   alt="3D Artisan Double Zinger Burger"
                   className="w-full h-full object-contain filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)] hover:scale-105 transition-transform"
                 />

@@ -3,6 +3,7 @@ import { Search, Flame, Sparkles, Filter, Plus, ChevronRight, Layers } from 'luc
 import { Product, Category } from '../../types';
 import { storageService } from '../../services/storageService';
 import { ProductDetailModal } from './ProductDetailModal';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 interface MenuSectionProps {
   initialCategory?: string;
@@ -177,7 +178,7 @@ export const MenuSection: React.FC<MenuSectionProps> = ({ initialCategory = 'All
                   {/* Card Image Slot (with fallback container and zero broken images) */}
                   <div className="relative aspect-4/3 bg-neutral-950 overflow-hidden">
                     <img
-                      src={product.image}
+                      src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"

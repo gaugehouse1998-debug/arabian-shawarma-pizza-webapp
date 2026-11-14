@@ -15,13 +15,26 @@ import {
   RecycleBinItem,
   OrderStatus,
   PaymentStatus,
-  VerifiedLocationState
+  VerifiedLocationState,
+  CartItem,
+  CouponRedemption,
+  ReviewStatus
 } from '../types';
 import {
   syncDeliveryZoneToFirestore,
   deleteDeliveryZoneFromFirestore,
   syncRestaurantSettingsToFirestore
 } from './deliveryFirestoreService';
+import {
+  syncDealToFirestore,
+  syncDealsBatchToFirestore,
+  deleteDealFromFirestore,
+  syncCouponToFirestore,
+  deleteCouponFromFirestore,
+  syncCouponRedemptionToFirestore,
+  syncReviewToFirestore,
+  deleteReviewFromFirestore
+} from './catalogFirestoreService';
 
 import {
   initialProducts,
@@ -42,7 +55,7 @@ export const initialBanners: BannerItem[] = [
     title: 'Midnight Cravings Satisfied',
     subtitle: 'Hot Stone-Baked Pizzas & Juicy Shawarmas Open Daily till 3:00 AM',
     badge: 'Late Night Delivery',
-    imageUrl: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg',
+    imageUrl: '/assets/images/artisan_tikka_pizza_1794391294077.jpg',
     linkUrl: '#/menu',
     isActive: true,
     order: 1,
@@ -53,7 +66,7 @@ export const initialBanners: BannerItem[] = [
     title: '29 Mega Value Deals & Combos',
     subtitle: 'Exclusive student, couple, and giant family feast bundles starting at Rs. 700',
     badge: 'Save up to 35%',
-    imageUrl: '/src/assets/images/family_combo_feast_1794391295864.jpg',
+    imageUrl: '/assets/images/family_combo_feast_1794391295864.jpg',
     linkUrl: '#/deals',
     isActive: true,
     order: 2,
@@ -64,7 +77,7 @@ export const initialBanners: BannerItem[] = [
     title: 'Free Express Delivery in Walton Cantt',
     subtitle: 'Order above Rs. 2,500 and enjoy free doorstep delivery in Lahore',
     badge: 'Cavalry Ground',
-    imageUrl: '/src/assets/images/hero_3d_burger_1794391292664.jpg',
+    imageUrl: '/assets/images/hero_3d_burger_1794391292664.jpg',
     linkUrl: '#/menu',
     isActive: true,
     order: 3,
@@ -87,7 +100,8 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'asp_current_user_v1',
   ADMIN_SESSION: 'asp_admin_session_v1',
   BANNERS: 'asp_banners_v1',
-  AUDIT_LOGS: 'asp_audit_logs_v1'
+  AUDIT_LOGS: 'asp_audit_logs_v1',
+  COUPON_REDEMPTIONS: 'asp_coupon_redemptions_v1'
 };
 
 // Broadcast channel for real-time reactivity
@@ -350,9 +364,41 @@ export const storageService = {
   },
 
   // DEALS
-  getDeals(includeDeleted = false): Deal[] {
+  getDeals(includeDeleted = false, includeArchived = true): Deal[] {
     const all = getStored<Deal[]>(STORAGE_KEYS.DEALS, initialDeals);
-    return includeDeleted ? all : all.filter((d) => !d.isDeleted);
+    const filtered = all.filter((d) => {
+      if (!includeDeleted && d.isDeleted) return false;
+      if (!includeArchived && d.isArchived) return false;
+      return true;
+    });
+    return filtered.sort((a, b) => {
+      const orderA =
+        typeof a.displayOrder === 'number'
+          ? a.displayOrder
+          : parseInt(a.dealNumber.replace(/\D/g, ''), 10) || 9999;
+      const orderB =
+        typeof b.displayOrder === 'number'
+          ? b.displayOrder
+          : parseInt(b.dealNumber.replace(/\D/g, ''), 10) || 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.dealNumber.localeCompare(b.dealNumber);
+    });
+  },
+
+  getPublicActiveDeals(): Deal[] {
+    const now = Date.now();
+    return this.getDeals(false, false).filter((d) => {
+      if (!d.isActive) return false;
+      if (d.startDate) {
+        const startMs = new Date(`${d.startDate}T00:00:00`).getTime();
+        if (!Number.isNaN(startMs) && now < startMs) return false;
+      }
+      if (d.expiryDate) {
+        const endMs = new Date(`${d.expiryDate}T23:59:59.999`).getTime();
+        if (!Number.isNaN(endMs) && now > endMs) return false;
+      }
+      return true;
+    });
   },
 
   getAllDealsRaw(): Deal[] {
@@ -360,24 +406,170 @@ export const storageService = {
   },
 
   getDealById(id: string): Deal | undefined {
-    return this.getDeals(true).find((d) => d.id === id);
+    return this.getDeals(true, true).find((d) => d.id === id);
+  },
+
+  getDealOrderReferenceCount(dealId: string): number {
+    return this.getOrders().filter((o) =>
+      o.items.some((item) => item.productId === dealId)
+    ).length;
+  },
+
+  applyRemoteDeals(remoteDeals: Deal[]): void {
+    if (!Array.isArray(remoteDeals) || remoteDeals.length === 0) return;
+    setStored(STORAGE_KEYS.DEALS, remoteDeals, 'deals');
   },
 
   saveDeal(deal: Deal): Deal {
     const deals = this.getAllDealsRaw();
     const index = deals.findIndex((d) => d.id === deal.id);
+    const now = new Date().toISOString();
+
+    const normalizedItems =
+      Array.isArray(deal.includedItems) && deal.includedItems.length > 0
+        ? deal.includedItems
+            .filter((it) => it.name.trim())
+            .map((it) => (it.quantity > 1 ? `${it.quantity}x ${it.name.trim()}` : it.name.trim()))
+        : Array.isArray(deal.items)
+        ? deal.items.filter((s) => s.trim())
+        : [];
+
+    const normalizedPrice = Math.max(1, Math.round(Number(deal.price) || 1));
+    const normalizedOriginal =
+      typeof deal.originalPrice === 'number' && deal.originalPrice > normalizedPrice
+        ? Math.round(deal.originalPrice)
+        : deal.originalPrice && deal.originalPrice > 0
+        ? Math.round(deal.originalPrice)
+        : undefined;
+
+    const normalizedDeal: Deal = {
+      ...deal,
+      dealNumber: deal.dealNumber.trim().toUpperCase(),
+      title: deal.title.trim(),
+      description: deal.description?.trim() || '',
+      category: deal.category?.trim() || 'Regular Deals',
+      items: normalizedItems,
+      price: normalizedPrice,
+      originalPrice: normalizedOriginal,
+      displayOrder:
+        typeof deal.displayOrder === 'number' && Number.isFinite(deal.displayOrder)
+          ? deal.displayOrder
+          : index >= 0 && typeof deals[index].displayOrder === 'number'
+          ? deals[index].displayOrder
+          : parseInt(deal.dealNumber.replace(/\D/g, ''), 10) || deals.length + 1,
+      image:
+        deal.image?.trim() ||
+        '/assets/images/family_combo_feast_1794391295864.jpg',
+      isDeleted: Boolean(deal.isDeleted),
+      isArchived: Boolean(deal.isArchived),
+      createdAt: index >= 0 ? deals[index].createdAt || now : deal.createdAt || now,
+      updatedAt: now
+    };
+
     if (index >= 0) {
-      deals[index] = { ...deals[index], ...deal };
+      deals[index] = { ...deals[index], ...normalizedDeal };
     } else {
-      deals.unshift({ ...deal, isDeleted: false });
+      deals.push(normalizedDeal);
     }
+
     setStored(STORAGE_KEYS.DEALS, deals, 'deals');
     this.addAuditLog(
       index >= 0 ? 'UPDATE_DEAL' : 'CREATE_DEAL',
       'deal',
-      deal.id,
-      `Deal "${deal.dealNumber}: ${deal.title}" saved.`
+      normalizedDeal.id,
+      `Deal "${normalizedDeal.dealNumber}: ${normalizedDeal.title}" saved (Rs. ${normalizedDeal.price}).`
     );
+    void syncDealToFirestore(normalizedDeal);
+    return normalizedDeal;
+  },
+
+  bulkUpdateDealPrices(
+    updates: Array<{ id: string; price: number; originalPrice?: number }>,
+    performedBy = 'arabianshawarma@admin'
+  ): Deal[] {
+    const deals = this.getAllDealsRaw();
+    const now = new Date().toISOString();
+    const updatedDeals: Deal[] = [];
+    const updateMap = new Map(updates.map((u) => [u.id, u]));
+
+    const nextDeals = deals.map((deal) => {
+      const upd = updateMap.get(deal.id);
+      if (!upd) return deal;
+      const safePrice = Math.max(1, Math.round(Number(upd.price)));
+      const nextDeal: Deal = {
+        ...deal,
+        price: safePrice,
+        ...(upd.originalPrice !== undefined
+          ? { originalPrice: upd.originalPrice > safePrice ? Math.round(upd.originalPrice) : undefined }
+          : {}),
+        updatedAt: now
+      };
+      updatedDeals.push(nextDeal);
+      return nextDeal;
+    });
+
+    if (updatedDeals.length > 0) {
+      setStored(STORAGE_KEYS.DEALS, nextDeals, 'deals');
+      this.addAuditLog(
+        'BULK_UPDATE_DEAL_PRICES',
+        'deal',
+        updatedDeals.map((d) => d.id).join(','),
+        `Bulk updated prices for ${updatedDeals.length} deal(s).`,
+        performedBy
+      );
+      void syncDealsBatchToFirestore(updatedDeals);
+    }
+
+    return updatedDeals;
+  },
+
+  archiveDeal(id: string, performedBy = 'arabianshawarma@admin'): Deal | null {
+    const deals = this.getAllDealsRaw();
+    const index = deals.findIndex((d) => d.id === id);
+    if (index === -1) return null;
+
+    const deal: Deal = {
+      ...deals[index],
+      isArchived: true,
+      isActive: false,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    deals[index] = deal;
+    setStored(STORAGE_KEYS.DEALS, deals, 'deals');
+    this.addAuditLog(
+      'ARCHIVE_DEAL',
+      'deal',
+      id,
+      `Archived deal "${deal.dealNumber}: ${deal.title}" while preserving historical orders.`,
+      performedBy
+    );
+    void syncDealToFirestore(deal);
+    return deal;
+  },
+
+  unarchiveDeal(id: string, performedBy = 'arabianshawarma@admin'): Deal | null {
+    const deals = this.getAllDealsRaw();
+    const index = deals.findIndex((d) => d.id === id);
+    if (index === -1) return null;
+
+    const deal: Deal = {
+      ...deals[index],
+      isArchived: false,
+      archivedAt: undefined,
+      isActive: true,
+      updatedAt: new Date().toISOString()
+    };
+    deals[index] = deal;
+    setStored(STORAGE_KEYS.DEALS, deals, 'deals');
+    this.addAuditLog(
+      'UNARCHIVE_DEAL',
+      'deal',
+      id,
+      `Unarchived deal "${deal.dealNumber}: ${deal.title}".`,
+      performedBy
+    );
+    void syncDealToFirestore(deal);
     return deal;
   },
 
@@ -399,6 +591,7 @@ export const storageService = {
       `Soft deleted deal "${deal.dealNumber}: ${deal.title}". Moved to Recycle Bin.`,
       deletedBy
     );
+    void syncDealToFirestore(deal);
     return deal;
   },
 
@@ -419,6 +612,7 @@ export const storageService = {
       id,
       `Restored deal "${deal.dealNumber}: ${deal.title}" from Recycle Bin.`
     );
+    void syncDealToFirestore(deal);
     return deal;
   },
 
@@ -431,8 +625,9 @@ export const storageService = {
       'PERMANENT_DELETE_DEAL',
       'deal',
       id,
-      `Permanently purged deal "${target?.dealNumber || id}".`
+      `Permanently purged deal "${target?.dealNumber || id}". Historical order snapshots remain intact.`
     );
+    void deleteDealFromFirestore(id);
     return true;
   },
 
@@ -524,7 +719,7 @@ export const storageService = {
     return true;
   },
 
-  // COUPONS
+  // COUPONS & REDEMPTIONS
   getCoupons(includeDeleted = false): Coupon[] {
     const all = getStored<Coupon[]>(STORAGE_KEYS.COUPONS, initialCoupons);
     return includeDeleted ? all : all.filter((c) => !c.isDeleted);
@@ -534,22 +729,78 @@ export const storageService = {
     return getStored<Coupon[]>(STORAGE_KEYS.COUPONS, initialCoupons);
   },
 
-  saveCoupon(coupon: Coupon): Coupon {
+  applyRemoteCoupons(remoteCoupons: Coupon[]): void {
+    if (!Array.isArray(remoteCoupons) || remoteCoupons.length === 0) return;
+    setStored(STORAGE_KEYS.COUPONS, remoteCoupons, 'coupons');
+  },
+
+  getCouponRedemptions(): CouponRedemption[] {
+    return getStored<CouponRedemption[]>(STORAGE_KEYS.COUPON_REDEMPTIONS, []);
+  },
+
+  saveCoupon(coupon: Coupon, previousCode?: string): Coupon {
     const coupons = this.getAllCouponsRaw();
-    const index = coupons.findIndex((c) => c.code.toUpperCase() === coupon.code.toUpperCase());
+    const normalizedCode = coupon.code.trim().toUpperCase();
+    const lookupCode = (previousCode || normalizedCode).trim().toUpperCase();
+    const index = coupons.findIndex((c) => c.code.toUpperCase() === lookupCode);
+    const now = new Date().toISOString();
+
+    const normalized: Coupon = {
+      ...coupon,
+      code: normalizedCode,
+      title: coupon.title?.trim() || undefined,
+      description: coupon.description?.trim() || undefined,
+      discountValue: Math.max(1, Number(coupon.discountValue) || 1),
+      minOrderValue: Math.max(0, Number(coupon.minOrderValue) || 0),
+      maxDiscount:
+        coupon.maxDiscount && Number(coupon.maxDiscount) > 0
+          ? Number(coupon.maxDiscount)
+          : undefined,
+      startDate: coupon.startDate?.trim() || undefined,
+      expiryDate: coupon.expiryDate?.trim() || undefined,
+      usageLimit:
+        coupon.usageLimit && Number(coupon.usageLimit) > 0
+          ? Math.floor(Number(coupon.usageLimit))
+          : undefined,
+      perCustomerLimit:
+        coupon.perCustomerLimit && Number(coupon.perCustomerLimit) > 0
+          ? Math.floor(Number(coupon.perCustomerLimit))
+          : undefined,
+      applicableCategories:
+        coupon.applicableCategories && coupon.applicableCategories.length > 0
+          ? coupon.applicableCategories
+          : undefined,
+      applicableProductIds:
+        coupon.applicableProductIds && coupon.applicableProductIds.length > 0
+          ? coupon.applicableProductIds
+          : undefined,
+      timesUsed: Math.max(0, Number(coupon.timesUsed) || 0),
+      isActive: Boolean(coupon.isActive),
+      isDeleted: Boolean(coupon.isDeleted),
+      createdAt: index >= 0 ? coupons[index].createdAt || now : coupon.createdAt || now,
+      updatedAt: now
+    };
+
     if (index >= 0) {
-      coupons[index] = { ...coupons[index], ...coupon };
+      coupons[index] = { ...coupons[index], ...normalized };
+      if (previousCode && previousCode.toUpperCase() !== normalizedCode) {
+        void deleteCouponFromFirestore(previousCode);
+      }
     } else {
-      coupons.push({ ...coupon, isDeleted: false });
+      coupons.push({ ...normalized, isDeleted: false });
     }
+
     setStored(STORAGE_KEYS.COUPONS, coupons, 'coupons');
     this.addAuditLog(
       index >= 0 ? 'UPDATE_COUPON' : 'CREATE_COUPON',
       'coupon',
-      coupon.code,
-      `Coupon code "${coupon.code}" (${coupon.discountValue}${coupon.discountType === 'percentage' ? '%' : ' PKR'} off) saved.`
+      normalized.code,
+      `Coupon code "${normalized.code}" (${normalized.discountValue}${
+        normalized.discountType === 'percentage' ? '%' : ' PKR'
+      } off) saved.`
     );
-    return coupon;
+    void syncCouponToFirestore(normalized);
+    return normalized;
   },
 
   softDeleteCoupon(code: string, deletedBy = 'arabianshawarma@admin'): Coupon | null {
@@ -570,6 +821,7 @@ export const storageService = {
       `Soft deleted coupon "${code}". Moved to Recycle Bin.`,
       deletedBy
     );
+    void syncCouponToFirestore(coupon);
     return coupon;
   },
 
@@ -590,6 +842,7 @@ export const storageService = {
       code,
       `Restored coupon "${code}" from Recycle Bin.`
     );
+    void syncCouponToFirestore(coupon);
     return coupon;
   },
 
@@ -603,6 +856,7 @@ export const storageService = {
       code,
       `Permanently deleted coupon "${code}".`
     );
+    void deleteCouponFromFirestore(code);
     return true;
   },
 
@@ -610,31 +864,137 @@ export const storageService = {
     return Boolean(this.softDeleteCoupon(code));
   },
 
-  validateCoupon(code: string, subtotal: number): { valid: boolean; discount: number; message: string } {
-    const coupon = this.getCoupons().find((c) => c.code.toUpperCase() === code.trim().toUpperCase() && c.isActive);
-    if (!coupon) {
-      return { valid: false, discount: 0, message: 'Invalid or expired coupon code.' };
+  validateCoupon(
+    code: string,
+    subtotal: number,
+    options?: { items?: CartItem[]; customerPhone?: string; customerEmail?: string }
+  ): { valid: boolean; discount: number; message: string; coupon?: Coupon } {
+    const normalizedInput = code.trim().toUpperCase();
+    if (!normalizedInput) {
+      return { valid: false, discount: 0, message: 'Please enter a coupon code.' };
     }
+
+    const coupon = this.getCoupons(false).find(
+      (c) => c.code.trim().toUpperCase() === normalizedInput
+    );
+
+    if (!coupon) {
+      return { valid: false, discount: 0, message: 'Invalid coupon code. Please check and try again.' };
+    }
+
+    if (!coupon.isActive) {
+      return { valid: false, discount: 0, message: `Coupon "${coupon.code}" is currently inactive.` };
+    }
+
+    const nowMs = Date.now();
+    if (coupon.startDate) {
+      const startMs = new Date(`${coupon.startDate}T00:00:00`).getTime();
+      if (!Number.isNaN(startMs) && nowMs < startMs) {
+        return {
+          valid: false,
+          discount: 0,
+          message: `Coupon "${coupon.code}" is not active yet. Starts on ${coupon.startDate}.`
+        };
+      }
+    }
+
+    if (coupon.expiryDate) {
+      const expiryMs = new Date(`${coupon.expiryDate}T23:59:59.999`).getTime();
+      if (!Number.isNaN(expiryMs) && nowMs > expiryMs) {
+        return {
+          valid: false,
+          discount: 0,
+          message: `Coupon "${coupon.code}" expired on ${coupon.expiryDate}.`
+        };
+      }
+    }
+
+    if (
+      typeof coupon.usageLimit === 'number' &&
+      coupon.usageLimit > 0 &&
+      (coupon.timesUsed || 0) >= coupon.usageLimit
+    ) {
+      return {
+        valid: false,
+        discount: 0,
+        message: `Coupon "${coupon.code}" has reached its maximum usage limit.`
+      };
+    }
+
+    if (typeof coupon.perCustomerLimit === 'number' && coupon.perCustomerLimit > 0) {
+      const cleanPhone = (options?.customerPhone || '').replace(/[^0-9]/g, '');
+      const cleanEmail = (options?.customerEmail || '').trim().toLowerCase();
+      if (cleanPhone || cleanEmail) {
+        const redemptions = this.getCouponRedemptions().filter(
+          (r) => r.couponCode.toUpperCase() === coupon.code.toUpperCase()
+        );
+        const customerUses = redemptions.filter((r) => {
+          const rPhone = r.customerPhone.replace(/[^0-9]/g, '');
+          const rEmail = (r.customerEmail || '').trim().toLowerCase();
+          return (cleanPhone && rPhone === cleanPhone) || (cleanEmail && rEmail === cleanEmail);
+        }).length;
+
+        if (customerUses >= coupon.perCustomerLimit) {
+          return {
+            valid: false,
+            discount: 0,
+            message: `You have already reached the per-customer limit (${coupon.perCustomerLimit}) for "${coupon.code}".`
+          };
+        }
+      }
+    }
+
     if (subtotal < coupon.minOrderValue) {
       return {
         valid: false,
         discount: 0,
-        message: `Minimum order value of Rs. ${coupon.minOrderValue.toLocaleString()} required for this coupon.`
+        message: `Minimum order value of Rs. ${coupon.minOrderValue.toLocaleString()} required for "${coupon.code}".`
       };
     }
+
+    // Category / product eligibility filtering
+    const hasCategoryRestrictions = Boolean(coupon.applicableCategories?.length);
+    const hasProductRestrictions = Boolean(coupon.applicableProductIds?.length);
+    let eligibleSubtotal = subtotal;
+
+    if ((hasCategoryRestrictions || hasProductRestrictions) && options?.items) {
+      const catSet = new Set((coupon.applicableCategories || []).map((c) => c.toLowerCase()));
+      const prodSet = new Set(coupon.applicableProductIds || []);
+      const eligibleItems = options.items.filter(
+        (item) => prodSet.has(item.productId) || catSet.has(item.category.toLowerCase())
+      );
+
+      if (eligibleItems.length === 0) {
+        return {
+          valid: false,
+          discount: 0,
+          message: `Coupon "${coupon.code}" does not apply to the items currently in your cart.`
+        };
+      }
+
+      eligibleSubtotal = eligibleItems.reduce(
+        (sum, item) => sum + Math.max(0, Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1),
+        0
+      );
+    }
+
     let discount = 0;
     if (coupon.discountType === 'percentage') {
-      discount = Math.round((subtotal * coupon.discountValue) / 100);
+      discount = Math.round((eligibleSubtotal * coupon.discountValue) / 100);
       if (coupon.maxDiscount && discount > coupon.maxDiscount) {
         discount = coupon.maxDiscount;
       }
     } else {
       discount = coupon.discountValue;
     }
+
+    const finalDiscount = Math.max(0, Math.min(discount, eligibleSubtotal, subtotal));
+
     return {
       valid: true,
-      discount: Math.min(discount, subtotal),
-      message: `Promo code "${coupon.code}" applied! You saved Rs. ${discount.toLocaleString()}.`
+      discount: finalDiscount,
+      coupon,
+      message: `Promo code "${coupon.code}" applied! You saved Rs. ${finalDiscount.toLocaleString()}.`
     };
   },
 
@@ -982,11 +1342,19 @@ export const storageService = {
     }
 
     let authoritativeDiscount = 0;
-    if (orderData.couponCode) {
-      const couponRes = this.validateCoupon(orderData.couponCode, computedSubtotal);
-      if (couponRes.valid) {
-        authoritativeDiscount = couponRes.discount;
+    let appliedCouponCode: string | undefined;
+
+    if (orderData.couponCode && orderData.couponCode.trim()) {
+      const couponRes = this.validateCoupon(orderData.couponCode, computedSubtotal, {
+        items: orderData.items,
+        customerPhone: orderData.customer.phone,
+        customerEmail: orderData.customer.email
+      });
+      if (!couponRes.valid) {
+        throw new Error(couponRes.message || 'Promo code is invalid or no longer eligible.');
       }
+      authoritativeDiscount = couponRes.discount;
+      appliedCouponCode = couponRes.coupon?.code || orderData.couponCode.trim().toUpperCase();
     }
 
     const authoritativeTax =
@@ -1010,6 +1378,7 @@ export const storageService = {
       },
       subtotal: computedSubtotal,
       discount: authoritativeDiscount,
+      couponCode: appliedCouponCode,
       deliveryFee: deliveryCheck.authoritativeFee,
       tax: authoritativeTax,
       total: authoritativeTotal,
@@ -1023,6 +1392,46 @@ export const storageService = {
         }
       ]
     };
+
+    // Atomic redemption tracking & usage limit enforcement right before persisting order
+    if (appliedCouponCode) {
+      const allCoupons = this.getAllCouponsRaw();
+      const couponIdx = allCoupons.findIndex(
+        (c) => c.code.toUpperCase() === appliedCouponCode && !c.isDeleted
+      );
+      if (couponIdx === -1 || !allCoupons[couponIdx].isActive) {
+        throw new Error(`Coupon "${appliedCouponCode}" is no longer available.`);
+      }
+      const targetCoupon = allCoupons[couponIdx];
+      if (
+        typeof targetCoupon.usageLimit === 'number' &&
+        targetCoupon.usageLimit > 0 &&
+        (targetCoupon.timesUsed || 0) >= targetCoupon.usageLimit
+      ) {
+        throw new Error(`Coupon "${appliedCouponCode}" has reached its maximum usage limit.`);
+      }
+
+      targetCoupon.timesUsed = (targetCoupon.timesUsed || 0) + 1;
+      targetCoupon.updatedAt = now;
+      allCoupons[couponIdx] = targetCoupon;
+      setStored(STORAGE_KEYS.COUPONS, allCoupons, 'coupons');
+      void syncCouponToFirestore(targetCoupon);
+
+      const redemption: CouponRedemption = {
+        id: `red-${newOrder.id}`,
+        couponCode: appliedCouponCode,
+        orderId: newOrder.id,
+        customerPhone: newOrder.customer.phone,
+        customerEmail: newOrder.customer.email,
+        discountAmount: authoritativeDiscount,
+        orderSubtotal: computedSubtotal,
+        redeemedAt: now
+      };
+      const redemptions = this.getCouponRedemptions();
+      redemptions.unshift(redemption);
+      setStored(STORAGE_KEYS.COUPON_REDEMPTIONS, redemptions, 'coupon_redemptions');
+      void syncCouponRedemptionToFirestore(redemption);
+    }
 
     orders.unshift(newOrder);
     setStored(STORAGE_KEYS.ORDERS, orders, 'orders');
@@ -1421,24 +1830,164 @@ export const storageService = {
 
   // REVIEWS
   getReviews(): Review[] {
-    return getStored<Review[]>(STORAGE_KEYS.REVIEWS, initialReviews);
+    const raw = getStored<Review[]>(STORAGE_KEYS.REVIEWS, initialReviews);
+    return raw
+      .map((r) => {
+        const status: ReviewStatus = r.status
+          ? r.status
+          : r.isApproved
+          ? 'approved'
+          : 'pending';
+        return {
+          ...r,
+          status,
+          isApproved: status === 'approved'
+        };
+      })
+      .sort((a, b) => {
+        const tA = new Date(a.createdAt || a.date).getTime() || 0;
+        const tB = new Date(b.createdAt || b.date).getTime() || 0;
+        return tB - tA;
+      });
+  },
+
+  getApprovedReviews(): Review[] {
+    return this.getReviews().filter((r) => r.isApproved && r.status === 'approved');
+  },
+
+  hasReviewForOrder(orderId: string): boolean {
+    if (!orderId) return false;
+    const norm = orderId.trim().toLowerCase();
+    return this.getReviews().some((r) => (r.orderId || '').trim().toLowerCase() === norm);
+  },
+
+  getReviewByOrderId(orderId: string): Review | undefined {
+    const norm = orderId.trim().toLowerCase();
+    return this.getReviews().find((r) => (r.orderId || '').trim().toLowerCase() === norm);
+  },
+
+  applyRemoteReviews(remoteReviews: Review[]): void {
+    if (!Array.isArray(remoteReviews) || remoteReviews.length === 0) return;
+    const existing = this.getReviews();
+    const map = new Map(existing.map((r) => [r.id, r]));
+    remoteReviews.forEach((r) => map.set(r.id, r));
+    setStored(STORAGE_KEYS.REVIEWS, Array.from(map.values()), 'reviews');
+  },
+
+  submitOrderReview(input: {
+    orderId?: string;
+    customerName: string;
+    rating: number;
+    comment: string;
+    itemOrdered?: string;
+  }): Review {
+    const cleanName = input.customerName.trim();
+    const cleanComment = input.comment.trim();
+    const cleanRating = Math.min(5, Math.max(1, Math.round(Number(input.rating) || 0)));
+
+    if (!cleanName) {
+      throw new Error('Please enter your name before submitting.');
+    }
+    if (!cleanRating || cleanRating < 1 || cleanRating > 5) {
+      throw new Error('Please select a star rating from 1 to 5.');
+    }
+    if (!cleanComment) {
+      throw new Error('Please write a short review about your experience.');
+    }
+    if (input.orderId && this.hasReviewForOrder(input.orderId)) {
+      throw new Error('A review has already been submitted for this order.');
+    }
+
+    const now = new Date().toISOString();
+    const review: Review = {
+      id: `rev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      orderId: input.orderId?.trim() || undefined,
+      customerName: cleanName,
+      rating: cleanRating,
+      comment: cleanComment,
+      date: now.split('T')[0],
+      createdAt: now,
+      status: 'pending',
+      isApproved: false,
+      itemOrdered: input.itemOrdered?.trim() || undefined
+    };
+
+    const reviews = this.getReviews();
+    reviews.unshift(review);
+    setStored(STORAGE_KEYS.REVIEWS, reviews, 'reviews');
+    this.addAuditLog(
+      'SUBMIT_REVIEW',
+      'review',
+      review.id,
+      `New ${review.rating}-star review submitted by "${review.customerName}"${
+        review.orderId ? ` for order #${review.orderId}` : ''
+      }.`,
+      review.customerName
+    );
+    void syncReviewToFirestore(review);
+    return review;
+  },
+
+  moderateReview(
+    id: string,
+    status: ReviewStatus,
+    adminEmail = 'arabianshawarma@admin'
+  ): Review | null {
+    const reviews = this.getReviews();
+    const index = reviews.findIndex((r) => r.id === id);
+    if (index === -1) return null;
+
+    const updated: Review = {
+      ...reviews[index],
+      status,
+      isApproved: status === 'approved',
+      moderatedAt: new Date().toISOString(),
+      moderatedBy: adminEmail
+    };
+    reviews[index] = updated;
+    setStored(STORAGE_KEYS.REVIEWS, reviews, 'reviews');
+    this.addAuditLog(
+      'MODERATE_REVIEW',
+      'review',
+      id,
+      `Review by "${updated.customerName}" marked as "${status}".`,
+      adminEmail
+    );
+    void syncReviewToFirestore(updated);
+    return updated;
   },
 
   saveReview(review: Review): Review {
     const reviews = this.getReviews();
-    const index = reviews.findIndex((r) => r.id === review.id);
+    const normalized: Review = {
+      ...review,
+      status: review.status || (review.isApproved ? 'approved' : 'pending'),
+      isApproved:
+        review.status !== undefined ? review.status === 'approved' : Boolean(review.isApproved),
+      createdAt: review.createdAt || new Date().toISOString()
+    };
+    const index = reviews.findIndex((r) => r.id === normalized.id);
     if (index >= 0) {
-      reviews[index] = review;
+      reviews[index] = normalized;
     } else {
-      reviews.unshift(review);
+      reviews.unshift(normalized);
     }
     setStored(STORAGE_KEYS.REVIEWS, reviews, 'reviews');
-    return review;
+    void syncReviewToFirestore(normalized);
+    return normalized;
   },
 
   deleteReview(id: string): boolean {
+    const target = this.getReviews().find((r) => r.id === id);
     const reviews = this.getReviews().filter((r) => r.id !== id);
     setStored(STORAGE_KEYS.REVIEWS, reviews, 'reviews');
+    this.addAuditLog(
+      'DELETE_REVIEW',
+      'review',
+      id,
+      `Deleted review by "${target?.customerName || id}".`
+    );
+    void deleteReviewFromFirestore(id);
     return true;
   },
 

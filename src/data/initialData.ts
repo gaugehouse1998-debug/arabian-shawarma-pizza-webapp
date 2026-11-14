@@ -41,16 +41,16 @@ export const initialRestaurantSettings: RestaurantSettings = {
 };
 
 export const initialCategories: Category[] = [
-  { id: "cat-deals", name: "Regular Deals", order: 1, isActive: true, description: "Exclusive combos from Deal 01 to Deal 29", image: "/src/assets/images/family_combo_feast_1794391295864.jpg" },
-  { id: "cat-pizza", name: "Pizza", order: 2, isActive: true, description: "Fresh stone-baked artisanal pizzas with loaded cheese & toppings", image: "/src/assets/images/artisan_tikka_pizza_1794391294077.jpg" },
-  { id: "cat-shawarma", name: "Shawarma", order: 3, isActive: true, description: "Original Arabian roasted chicken shawarmas with garlic toum", image: "/src/assets/images/arabian_chicken_shawarma_1794391294232.jpg" },
-  { id: "cat-burger", name: "Burger", order: 4, isActive: true, description: "Crispy zinger, juicy grill & specialty burgers", image: "/src/assets/images/hero_3d_burger_1794391292664.jpg" },
-  { id: "cat-paratha", name: "Paratha Roll", order: 5, isActive: true, description: "Crispy flaky paratha rolls with BBQ & cheese", image: "/src/assets/images/paratha_roll_bbq_1794391328091.jpg" },
-  { id: "cat-sandwich", name: "Sandwich", order: 6, isActive: true, description: "Grilled clubs, paninis & pizza stackers with fries", image: "/src/assets/images/club_sandwich_fries_1794391328479.jpg" },
-  { id: "cat-wrap", name: "Wrap", order: 7, isActive: true, description: "Fresh toasted tortilla wraps with grilled chicken & sauces", image: "/src/assets/images/arabian_chicken_shawarma_1794391294232.jpg" },
-  { id: "cat-appetizer", name: "Appetizer", order: 8, isActive: true, description: "Loaded fries, hot shots, crispy wings & nuggets", image: "/src/assets/images/loaded_cheese_fries_1794391295410.jpg" },
-  { id: "cat-drinks", name: "Drinks", order: 9, isActive: true, description: "Chilled soft drinks and mineral water", image: "/src/assets/images/chilled_cold_drinks_1794391330454.jpg" },
-  { id: "cat-dip-sauce", name: "Dip Sauce", order: 10, isActive: true, description: "House specialty garlic mayo, peri peri, chipotle & jalapeno", image: "/src/assets/images/gourmet_dip_sauces_1794391329846.jpg" },
+  { id: "cat-deals", name: "Regular Deals", order: 1, isActive: true, description: "Exclusive combos from Deal 01 to Deal 29", image: "/assets/images/family_combo_feast_1794391295864.jpg" },
+  { id: "cat-pizza", name: "Pizza", order: 2, isActive: true, description: "Fresh stone-baked artisanal pizzas with loaded cheese & toppings", image: "/assets/images/artisan_tikka_pizza_1794391294077.jpg" },
+  { id: "cat-shawarma", name: "Shawarma", order: 3, isActive: true, description: "Original Arabian roasted chicken shawarmas with garlic toum", image: "/assets/images/arabian_chicken_shawarma_1794391294232.jpg" },
+  { id: "cat-burger", name: "Burger", order: 4, isActive: true, description: "Crispy zinger, juicy grill & specialty burgers", image: "/assets/images/hero_3d_burger_1794391292664.jpg" },
+  { id: "cat-paratha", name: "Paratha Roll", order: 5, isActive: true, description: "Crispy flaky paratha rolls with BBQ & cheese", image: "/assets/images/paratha_roll_bbq_1794391328091.jpg" },
+  { id: "cat-sandwich", name: "Sandwich", order: 6, isActive: true, description: "Grilled clubs, paninis & pizza stackers with fries", image: "/assets/images/club_sandwich_fries_1794391328479.jpg" },
+  { id: "cat-wrap", name: "Wrap", order: 7, isActive: true, description: "Fresh toasted tortilla wraps with grilled chicken & sauces", image: "/assets/images/arabian_chicken_shawarma_1794391294232.jpg" },
+  { id: "cat-appetizer", name: "Appetizer", order: 8, isActive: true, description: "Loaded fries, hot shots, crispy wings & nuggets", image: "/assets/images/loaded_cheese_fries_1794391295410.jpg" },
+  { id: "cat-drinks", name: "Drinks", order: 9, isActive: true, description: "Chilled soft drinks and mineral water", image: "/assets/images/chilled_cold_drinks_1794391330454.jpg" },
+  { id: "cat-dip-sauce", name: "Dip Sauce", order: 10, isActive: true, description: "House specialty garlic mayo, peri peri, chipotle & jalapeno", image: "/assets/images/gourmet_dip_sauces_1794391329846.jpg" },
 ];
 
 export const commonAddons = [
@@ -77,7 +77,7 @@ export const initialProducts: Product[] = [
     category: 'Pizza',
     description: 'Traditional Pakistani chicken tikka chunks with onions, capsicum, and premium mozzarella cheese.',
     basePrice: 450,
-    image: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg',
+    image: '/assets/images/artisan_tikka_pizza_1794391294077.jpg',
     sizes: [
       { name: 'Small (8")', price: 450 },
       { name: 'Medium (11")', price: 900 },
@@ -547,7 +547,7 @@ export const initialProducts: Product[] = [
     category: 'Burger',
     description: 'Crunchy golden-fried spicy chicken thigh fillet with fresh fries and dip sauce.',
     basePrice: 400,
-    image: '/src/assets/images/hero_3d_burger_1794391292664.jpg',
+    image: '/assets/images/hero_3d_burger_1794391292664.jpg',
     addons: commonAddons,
     isAvailable: true,
     isFeatured: true,
@@ -732,7 +732,7 @@ export const initialProducts: Product[] = [
     category: 'Sandwich',
     description: 'Classic 3-tier club sandwich with shredded chicken, boiled egg, cheese slice, lettuce, and fries.',
     basePrice: 400,
-    image: '/src/assets/images/club_sandwich_fries_1794391328479.jpg',
+    image: '/assets/images/club_sandwich_fries_1794391328479.jpg',
     addons: commonAddons,
     isAvailable: true,
     isFeatured: true,
@@ -783,7 +783,7 @@ export const initialProducts: Product[] = [
     category: 'Paratha Roll',
     description: 'Smoky BBQ chicken boti wrapped in hot golden paratha with onions and green chutney.',
     basePrice: 500,
-    image: '/src/assets/images/paratha_roll_bbq_1794391328091.jpg',
+    image: '/assets/images/paratha_roll_bbq_1794391328091.jpg',
     addons: commonAddons,
     isAvailable: true,
     isFeatured: false,
@@ -869,7 +869,7 @@ export const initialProducts: Product[] = [
     category: 'Shawarma',
     description: 'Authentic rotating vertical spit roasted spiced chicken shaved thin, rolled in fresh pita bread with garlic toum sauce and pickles.',
     basePrice: 250,
-    image: '/src/assets/images/arabian_chicken_shawarma_1794391294232.jpg',
+    image: '/assets/images/arabian_chicken_shawarma_1794391294232.jpg',
     sizes: [
       { name: 'Regular', price: 250 },
       { name: 'Jumbo', price: 320 }
@@ -1065,7 +1065,7 @@ export const initialProducts: Product[] = [
     category: 'Appetizer',
     description: 'Crispy French fries smothered in shredded chicken, melted cheddar cheese, jalapeños, and special sauce.',
     basePrice: 700,
-    image: '/src/assets/images/loaded_cheese_fries_1794391295410.jpg',
+    image: '/assets/images/loaded_cheese_fries_1794391295410.jpg',
     addons: commonAddons,
     isAvailable: true,
     isFeatured: true,
@@ -1173,7 +1173,7 @@ export const initialProducts: Product[] = [
     category: 'Drinks',
     description: 'Chilled 500ml soft drink bottle.',
     basePrice: 150,
-    image: '/src/assets/images/chilled_cold_drinks_1794391330454.jpg',
+    image: '/assets/images/chilled_cold_drinks_1794391330454.jpg',
     isAvailable: true,
     isFeatured: false,
     isBestSeller: true
@@ -1241,7 +1241,7 @@ export const initialProducts: Product[] = [
     category: 'Dip Sauce',
     description: 'Creamy garlic infused mayonnaise dip, freshly made in-house.',
     basePrice: 100,
-    image: '/src/assets/images/gourmet_dip_sauces_1794391329846.jpg',
+    image: '/assets/images/gourmet_dip_sauces_1794391329846.jpg',
     isAvailable: true,
     isFeatured: false,
     isBestSeller: true
@@ -1317,7 +1317,7 @@ export const initialDeals: Deal[] = [
     items: ['2 Zinger Shawarmas', '500ml Cold Drink'],
     price: 780,
     originalPrice: 850,
-    image: '/src/assets/images/arabian_chicken_shawarma_1794391294232.jpg',
+    image: '/assets/images/arabian_chicken_shawarma_1794391294232.jpg',
     isActive: true,
     isFeatured: true,
     badge: 'Best Value'
@@ -1342,7 +1342,7 @@ export const initialDeals: Deal[] = [
     items: ['2 Club Sandwich with Fries', '500ml Cold Drink'],
     price: 900,
     originalPrice: 950,
-    image: '/src/assets/images/club_sandwich_fries_1794391328479.jpg',
+    image: '/assets/images/club_sandwich_fries_1794391328479.jpg',
     isActive: true,
     isFeatured: false
   },
@@ -1379,7 +1379,7 @@ export const initialDeals: Deal[] = [
     items: ['2 Kabab Paratha Roll', '500ml Cold Drink'],
     price: 900,
     originalPrice: 1050,
-    image: '/src/assets/images/paratha_roll_bbq_1794391328091.jpg',
+    image: '/assets/images/paratha_roll_bbq_1794391328091.jpg',
     isActive: true,
     isFeatured: false
   },
@@ -1550,7 +1550,7 @@ export const initialDeals: Deal[] = [
     items: ['2 Small Pizza (Tikka Fajita)', '2 Zinger Burger', '2 Zinger Shawarma', '1.5 Ltr Cold Drink'],
     price: 2400,
     originalPrice: 2700,
-    image: '/src/assets/images/family_combo_feast_1794391295864.jpg',
+    image: '/assets/images/family_combo_feast_1794391295864.jpg',
     isActive: true,
     isFeatured: true,
     badge: 'Popular Family'
@@ -1622,7 +1622,7 @@ export const initialDeals: Deal[] = [
     items: ['1 Large Pizza (Tikka Fajita)', '1.5 Ltr Cold Drink'],
     price: 1650,
     originalPrice: 1750,
-    image: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg',
+    image: '/assets/images/artisan_tikka_pizza_1794391294077.jpg',
     isActive: true,
     isFeatured: false
   },
@@ -1866,7 +1866,7 @@ export const initialOrders: Order[] = [
         category: 'Regular Deals',
         price: 780,
         quantity: 1,
-        image: '/src/assets/images/family_combo_feast_1794391295864.jpg',
+        image: '/assets/images/family_combo_feast_1794391295864.jpg',
         isDeal: true
       },
       {
@@ -1876,7 +1876,7 @@ export const initialOrders: Order[] = [
         category: 'Appetizer',
         price: 700,
         quantity: 1,
-        image: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg'
+        image: '/assets/images/artisan_tikka_pizza_1794391294077.jpg'
       }
     ],
     subtotal: 1480,
@@ -1925,7 +1925,7 @@ export const initialOrders: Order[] = [
         category: 'Pizza',
         price: 1500,
         quantity: 1,
-        image: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg',
+        image: '/assets/images/artisan_tikka_pizza_1794391294077.jpg',
         options: {
           size: { name: 'Large (13")', price: 1500 },
           selectedAddons: [
@@ -1940,7 +1940,7 @@ export const initialOrders: Order[] = [
         category: 'Burger',
         price: 550,
         quantity: 2,
-        image: '/src/assets/images/artisan_tikka_pizza_1794391294077.jpg'
+        image: '/assets/images/artisan_tikka_pizza_1794391294077.jpg'
       }
     ],
     subtotal: 2750,
