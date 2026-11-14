@@ -815,7 +815,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="p-3 border-t border-neutral-800 text-[11px] text-neutral-400 flex items-center justify-between">
           <div className="truncate">
             <div className="font-semibold text-white truncate">{currentUser?.name || 'Administrator'}</div>
-            <div className="font-mono text-neutral-500 truncate">{currentUser?.email || 'admin@arabianshawarma.pk'}</div>
+            <div className="font-mono text-neutral-500 truncate">{currentUser?.email || 'Owner Session'}</div>
           </div>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
             Active
@@ -2420,7 +2420,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="p-3.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center justify-between">
                 <div>
                   <div className="font-bold text-white">Master Administrator</div>
-                  <div className="text-neutral-400">admin@arabianshawarma.pk · Full Permissions</div>
+                  <div className="text-neutral-400">Authorized Owner Account · Full Permissions</div>
                 </div>
                 <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">
                   Super Admin
@@ -2429,7 +2429,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="p-3.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center justify-between">
                 <div>
                   <div className="font-bold text-white">Kitchen Dispatch Station</div>
-                  <div className="text-neutral-400">kitchen@arabianshawarma.pk · Order Updates & KOT Printing</div>
+                  <div className="text-neutral-400">Kitchen Operations · Order Updates & KOT Printing</div>
                 </div>
                 <span className="text-[10px] font-bold text-neutral-300 bg-neutral-800 px-2 py-0.5 rounded">
                   Kitchen Operator

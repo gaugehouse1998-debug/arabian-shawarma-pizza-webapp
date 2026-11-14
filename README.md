@@ -47,7 +47,7 @@ Designed and pre-configured for seamless publication to **GitHub Pages** using c
 - **Customer Dining Reviews:** Verified ratings, review submission, and customer testimonials.
 
 ### Private & Secure Admin CRM
-- **Secure Admin Login:** Root credentials (`admin@arabianshawarma.pk` / `arabian123`). Public registration and Google sign-in are disabled for administrators.
+- **Secure Admin Login:** Protected owner-only authentication with rate-limited brute-force protection and mandatory password rotation on initial login. Public registration and Google sign-in are disabled for administrators.
 - **All 20 Sidebar Modules:**
   1. *Dashboard Overview:* Real-time KPIs, net revenue, today's sales, pending payments, active orders, and sales distribution.
   2. *Orders:* Filter by status, search, detail view, advance status modal with admin note, print invoices.
@@ -75,26 +75,23 @@ Designed and pre-configured for seamless publication to **GitHub Pages** using c
 
 ## 3. GitHub Pages Deployment Instructions
 
-The project is structured with `base: './'` in `vite.config.ts` and client-side hash routing (`#/...`) so it works out-of-the-box on GitHub Pages without 404 navigation errors.
+The project is structured with `base: command === 'build' ? '/arabian-shawarma-pizza-webapp/' : '/'` in `vite.config.ts`, a Bun lockfile (`bun.lock`), and client-side `HashRouter` (`#/...`) so production builds deploy cleanly under GitHub Pages without 404 errors.
 
 ### Step-by-Step GitHub Pages Deployment:
-1. **Push to GitHub:**
+1. **Push to GitHub (`main` branch):**
    ```bash
-   git init
    git add .
-   git commit -m "Initial commit: Arabian Shawarma & Pizza"
-   git branch -M main
-   git remote add origin https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
+   git commit -m "Deploy Arabian Shawarma & Pizza"
    git push -u origin main
    ```
 
-2. **Enable GitHub Pages:**
+2. **Configure GitHub Pages Source (CRITICAL):**
    - In your GitHub repository, go to **Settings** → **Pages**.
-   - Under **Build and deployment** → **Source**, select **GitHub Actions**.
+   - Under **Build and deployment** → **Source**, select **GitHub Actions** (never *Deploy from a branch*, which serves raw uncompiled source files).
 
-3. **Configure Environment Secrets (Optional for Firebase):**
+3. **Configure Firebase Repository Secrets (Optional Overrides):**
    - Go to **Settings** → **Secrets and variables** → **Actions**.
-   - Add your Firebase configuration keys:
+   - Optionally set your Firebase project configuration keys (falls back cleanly to `firebase-applet-config.json` when omitted):
      - `VITE_FIREBASE_API_KEY`
      - `VITE_FIREBASE_AUTH_DOMAIN`
      - `VITE_FIREBASE_PROJECT_ID`
@@ -102,8 +99,8 @@ The project is structured with `base: './'` in `vite.config.ts` and client-side 
      - `VITE_FIREBASE_MESSAGING_SENDER_ID`
      - `VITE_FIREBASE_APP_ID`
 
-4. **Automatic Deployment:**
-   - The included workflow `.github/workflows/deploy.yml` triggers automatically on every push to `main`, builds the Vite production bundle, and deploys to `https://<YOUR_USERNAME>.github.io/<YOUR_REPO>/`.
+4. **Automatic Bun CI/CD Deployment:**
+   - The workflow `.github/workflows/deploy.yml` runs on Node.js 22 + Bun (`bun install --frozen-lockfile`, `bun run lint`, `bun run build`), validates `dist/`, and deploys exclusively the `./dist` directory to `https://gaugehouse1998-debug.github.io/arabian-shawarma-pizza-webapp/`.
 
 ---
 
@@ -117,7 +114,7 @@ The application features dual-persistence:
    - Go to [Firebase Console](https://console.firebase.google.com) and create a project (e.g. `arabian-shawarma`).
 2. **Enable Authentication:**
    - In Firebase Console → **Build** → **Authentication** → **Sign-in method**, enable **Email/Password**.
-   - Add your first admin user (e.g., `admin@arabianshawarma.pk`).
+   - Create your private administrator account in Firebase Authentication and authorize it via `adminUsers`.
 3. **Enable Cloud Firestore:**
    - In Firebase Console → **Firestore Database**, create a database in production mode.
    - Deploy the provided `firestore.rules` file:

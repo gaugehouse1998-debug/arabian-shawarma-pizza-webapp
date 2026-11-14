@@ -9,7 +9,7 @@ interface MandatoryPasswordChangeModalProps {
 
 export const MandatoryPasswordChangeModal: React.FC<MandatoryPasswordChangeModalProps> = ({ onSuccess }) => {
   const { changeAdminPassword } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState('Admin1234');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showCurrent, setShowCurrent] = useState(false);
@@ -73,7 +73,7 @@ export const MandatoryPasswordChangeModal: React.FC<MandatoryPasswordChangeModal
               Mandatory Security Upgrade
             </h2>
             <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-              You are signed in with the initial temporary password (<code className="text-amber-400 font-mono">Admin1234</code>). For system integrity, you must set a permanent 12+ character password before accessing the admin dashboard.
+              You are signed in with a temporary onboarding password. For system integrity, you must set a permanent 12+ character password before accessing the admin dashboard.
             </p>
           </div>
         </div>
@@ -104,7 +104,7 @@ export const MandatoryPasswordChangeModal: React.FC<MandatoryPasswordChangeModal
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Admin1234"
+              placeholder="Enter current temporary password"
               className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-white font-mono"
             />
           </div>

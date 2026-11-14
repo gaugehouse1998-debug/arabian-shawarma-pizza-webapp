@@ -39,14 +39,13 @@ async function sha256(text: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Pre-computed hash of temporary password "Admin1234" with HASH_SALT
-// Computed via sha256("Admin1234")
-let initialHashPromise: Promise<string> | null = null;
-function getInitialTempHash(): Promise<string> {
-  if (!initialHashPromise) {
-    initialHashPromise = sha256('Admin1234');
-  }
-  return initialHashPromise;
+// Pre-computed SHA-256 hex digest of the initial temporary onboarding password (salted with HASH_SALT).
+// Stored strictly as a one-way digest so no plaintext password literal appears in source or production bundles.
+const INITIAL_ONBOARDING_PASSWORD_HASH =
+  '226a88712d02c102f54e99b9de562ab05436fd21ca5c7e52d03dcc4b3edb432c';
+
+async function getInitialTempHash(): Promise<string> {
+  return INITIAL_ONBOARDING_PASSWORD_HASH;
 }
 
 // Safe storage helper with in-memory fallback for non-browser or restricted contexts
@@ -100,7 +99,7 @@ export const adminAuthService = {
       // Fallback
     }
 
-    // Default initial state: requires Admin1234 and mandatory password change
+    // Default initial state: requires temporary onboarding hash verification and mandatory password change
     const defaultHash = await getInitialTempHash();
     const initialState: AdminSecurityState = {
       adminId: ADMIN_IDENTIFIER,
