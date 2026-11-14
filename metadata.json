@@ -1,0 +1,6 @@
+{
+  "name": "Arabian Shawarma & Pizza",
+  "description": "Official online ordering platform and restaurant CRM for Arabian Shawarma & Pizza. Delicious artisanal pizzas, juicy zinger burgers, authentic Arabian shawarmas, platters, and exclusive family deals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

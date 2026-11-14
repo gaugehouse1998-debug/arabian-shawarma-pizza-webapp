@@ -1,0 +1,173 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Food menu item listing with individual photographs, prices, and sizes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "image": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isBestSeller": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" },
+        "deletedBy": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "basePrice", "image", "isAvailable"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Food menu category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "order": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" },
+        "deletedBy": { "type": "string" }
+      },
+      "required": ["id", "name", "order", "isActive"]
+    },
+    "Deal": {
+      "title": "Deal",
+      "description": "Combo meal deal offer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "dealNumber": { "type": "string" },
+        "title": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" },
+        "deletedBy": { "type": "string" }
+      },
+      "required": ["id", "dealNumber", "title", "price", "image", "isActive"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer food order with immutable item snapshots.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" }
+      },
+      "required": ["id", "createdAt", "status", "total"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional homepage banner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" },
+        "deletedBy": { "type": "string" }
+      },
+      "required": ["id", "title", "imageUrl", "isActive"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Administrative security and action audit trail record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "details": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "action", "entityType", "performedBy", "timestamp"]
+    },
+    "DeliveryZone": {
+      "title": "DeliveryZone",
+      "description": "Admin-managed delivery area with fees, delivery time estimates, and optional coordinates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 140 },
+        "city": { "type": "string", "maxLength": 80 },
+        "fee": { "type": "number" },
+        "estimatedMinutes": { "type": "string", "maxLength": 60 },
+        "minOrder": { "type": "number" },
+        "instructions": { "type": "string", "maxLength": 400 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "radiusKm": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string", "maxLength": 64 },
+        "deletedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "name", "fee", "estimatedMinutes", "minOrder", "isActive"]
+    },
+    "RestaurantSettings": {
+      "title": "RestaurantSettings",
+      "description": "Restaurant operational settings including coordinates and 10 KM delivery radius.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 140 },
+        "address": { "type": "string", "maxLength": 300 },
+        "city": { "type": "string", "maxLength": 80 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "deliveryRadiusKm": { "type": "number" },
+        "defaultDeliveryFee": { "type": "number" },
+        "freeDeliveryThreshold": { "type": "number" },
+        "minimumOrderAmount": { "type": "number" },
+        "deliveryAvailable": { "type": "boolean" },
+        "pickupAvailable": { "type": "boolean" }
+      },
+      "required": ["name", "address", "city", "latitude", "longitude", "deliveryRadiusKm"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Food menu items"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Menu categories"
+    },
+    "/deals/{dealId}": {
+      "schema": "Deal",
+      "description": "Combos and deals"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders"
+    },
+    "/banners/{bannerId}": {
+      "schema": "Banner",
+      "description": "Promotional banners"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Security audit logs"
+    },
+    "/deliveryZones/{zoneId}": {
+      "schema": "DeliveryZone",
+      "description": "Admin-managed delivery coverage areas"
+    },
+    "/restaurantSettings/{settingId}": {
+      "schema": "RestaurantSettings",
+      "description": "Restaurant coordinates, delivery radius, and store preferences"
+    }
+  }
+}
